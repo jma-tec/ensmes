@@ -3,7 +3,7 @@
 
 ENSMES es un ensamblador modular escrito en C que genera ejecutables en un formato propio (`.jma`). Nace con el objetivo de ser la base de un ecosistema completo de programación, abarcando desde un lenguaje de alto nivel hasta un Kernel y Sistema Operativo propio de propósito general.
 
-## ✨ Características actuales
+## Características actuales
 - Sintaxis legible en español (`copiar`, `sumar`, `saltar_si_igual`).
 - Formato de ejecutable propio (`.jma`) con cargador integrado usando `mmap` en direcciones fijas.
 - Soporte para operaciones aritméticas, lógicas y de control de flujo.
@@ -11,8 +11,12 @@ ENSMES es un ensamblador modular escrito en C que genera ejecutables en un forma
 - Soporte **en desarrollo** para registros de 8, 32 y 64 bits (siendo el ecosistema de 64 bits el núcleo actual y más maduro).
 - Total libertad en el orden de las secciones (`.datos` y `.codigo`).
 
-## 🚀 Ejemplo de código (Bucle en ENSMES)
+## Ejemplo de código (Bucle en ENSMES)
 ```text
+.datos
+letra_a:
+definir_byte 65 # 'A'
+
 .codigo
 inicio:
 copiar 5, r_base64
@@ -29,9 +33,8 @@ saltar bucle
 fin:
 terminar
 
-.datos
-letra_a:
-definir_byte 65 # 'A'
+```
+
 
 Roadmap: El Ecosistema JMA
 ☑ Ensamblador base y cargador en C.
