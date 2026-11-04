@@ -50,10 +50,12 @@ Para compilar el ensamblador en Linux (asegúrate de tener gcc instalado):
 
 bash
 ``gcc src/main.c src/ensamblador.c -o ens``
+
 Para compilar un programa .ensmes:
 
 bash
 ``./ens compilar mi_programa.ensmes``
+
 Para ejecutarlo:
 
 bash
