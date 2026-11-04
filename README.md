@@ -49,15 +49,15 @@ terminar
 Para compilar el ensamblador en Linux (asegúrate de tener gcc instalado):
 
 bash
-gcc src/main.c src/ensamblador.c -o ens
+``gcc src/main.c src/ensamblador.c -o ens``
 Para compilar un programa .ensmes:
 
 bash
-./ens compilar mi_programa.ensmes
+``./ens compilar mi_programa.ensmes``
 Para ejecutarlo:
 
 bash
-./ens ejecutar mi_programa.jma
+``./ens ejecutar mi_programa.jma``
 
 ## ⚠️ AVISO IMPORTANTE: Estado del Proyecto y Transparencia
 Quiero ser totalmente honesto con cualquiera que se acerque a este repositorio. ENSMES es un proyecto en desarrollo temprano y experimental.
