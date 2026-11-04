@@ -61,16 +61,23 @@ Para ejecutarlo:
 bash
 ``./ens ejecutar mi_programa.jma``
 
-## ⚠️ AVISO IMPORTANTE: Estado del Proyecto y Transparencia
-Quiero ser totalmente honesto con cualquiera que se acerque a este repositorio. ENSMES es un proyecto en desarrollo temprano y experimental.
+## Estado del Proyecto y Transparencia
 
-El código puede tener errores: Aunque el núcleo funcional (compilador y cargador) ha sido probado y funciona, es muy probable que existan bugs ocultos, casos límite no cubiertos o comportamientos inesperados.
+> **Este es un proyecto en desarrollo temprano y experimental.**
+> 
+> Quiero ser totalmente honesto con cualquiera que se acerque a este repositorio:
+> 
+> - **El código puede tener errores:** Aunque el núcleo funcional (compilador y cargador) ha sido probado, es probable que existan bugs ocultos o casos límite no cubiertos.
+> - **La documentación puede estar incompleta:** Es posible que falten detalles sobre ciertos opcodes o que algunos matices técnicos estén desactualizados.
+> - **Evolución constante:** Estoy aprendiendo y expandiendo mis conocimientos de arquitectura de computadores a medida que construyo ENSMES.
+> 
+> *Si encuentras algún error, una instrucción mal documentada o algo que no cuadra, agradecería enormemente que lo notificaras.*
 
-La documentación puede estar incompleta o ser imprecisa: Aunque he intentado documentar todo lo posible, es posible que falten detalles sobre ciertos opcodes, que haya instrucciones documentadas de forma incompleta o que algunos matices técnicos estén desactualizados con respecto al código.
+## Contribuciones
 
-Esto no es un producto terminado: Estoy aprendiendo y expandiendo mis conocimientos de arquitectura de computadores y desarrollo de compiladores a medida que construyo ENSMES.
+Actualmente, el proyecto se encuentra en una fase temprana de desarrollo. Sin embargo, si compartes la visión de crear tecnología nativa en español y de bajo nivel, **tu ayuda es más que bienvenida**. 
 
-Si encuentras algún error, una instrucción mal documentada, un fallo de compilación o simplemente algo que no cuadra, te agradecería enormemente que lo notificaras. Puedes abrir un Issue en este repositorio o enviar una sugerencia. La crítica constructiva y la ayuda de la comunidad son fundamentales para que este ecosistema crezca y sea robusto.
-
-## 🤝 Contribuciones
-Si compartes la visión de crear tecnología nativa en español y de bajo nivel, ¡las ideas, reportes de bugs, críticas y sugerencias son más que bienvenidas!
+Puedes contribuir de las siguientes formas:
+- **Reportando bugs:** Abriendo un *Issue* si algo no funciona como debería.
+- **Sugiriendo mejoras:** Proponiendo nuevas instrucciones o mejoras en la arquitectura.
+- **Mejorando la documentación:** Si ves algo que falta o está mal explicado, ¡envía un *Pull Request*!
