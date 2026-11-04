@@ -1,0 +1,18 @@
+{
+  "name": "ensmes-icons",
+  "displayName": "ENSMES Icons",
+  "description": "Iconos para ENSMES",
+  "version": "0.0.1",
+  "engines": {
+    "vscode": "^1.0.0"
+  },
+  "contributes": {
+    "iconThemes": [
+      {
+        "id": "ensmes-theme",
+        "label": "ENSMES Icon Theme",
+        "path": "./ensmes-icon-theme.json"
+      }
+    ]
+  }
+}

@@ -1,0 +1,22 @@
+.datos
+buffer:
+definir_byte 72 # 'H'
+definir_byte 79 # 'O'
+definir_byte 76 # 'L'
+definir_byte 65 # 'A'
+definir_byte 10 # '\n'
+
+.codigo
+inicio:
+# Cargamos la dirección donde está "HOLA" en RSI
+cargar_direccion buffer, r_puntero64
+
+# Configuramos sys_write para imprimir 5 bytes
+copiar 5, r_datos64
+copiar 1, r_acumulador64
+copiar 1, r_destino64
+
+# ¡A imprimir!
+interrumpir
+
+terminar

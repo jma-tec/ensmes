@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <!-- Curva de bezier -->
+  <path d="M 6 24 C 6 8, 26 8, 26 24" stroke="#ff9800" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+  <!-- Nodos (puntos) de la curva -->
+  <circle cx="6" cy="24" r="3" fill="#ff9800"/>
+  <circle cx="26" cy="24" r="3" fill="#ff9800"/>
+</svg>

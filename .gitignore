@@ -1,0 +1,14 @@
+# Binarios compilados del compilador en C
+ens
+ensamblador
+cargador
+*.o
+*.out
+
+# Ejecutables generados por ENSMES
+*.jma
+
+# Archivos del sistema operativo / Editor
+.DS_Store
+.vscode/
+*.log

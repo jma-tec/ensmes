@@ -1,0 +1,26 @@
+{
+  "extends": "vs-minimal",
+  "iconDefinitions": {
+    "_ensmes": { "iconPath": "./icons/ensmes.svg" },
+    "_c": { "iconPath": "./icons/c.svg" },
+    "_md": { "iconPath": "./icons/md.svg" },
+    "_json": { "iconPath": "./icons/json.svg" },
+    "_py": { "iconPath": "./icons/py.svg" },
+    "_txt": { "iconPath": "./icons/txt.svg" },
+    "_sh": { "iconPath": "./icons/sh.svg" },
+    "_svg": { "iconPath": "./icons/vector.svg" },
+    "_jma": { "iconPath": "./icons/binario.svg" }
+  },
+  "fileExtensions": {
+    "ensmes": "_ensmes",
+    "c": "_c",
+    "h": "_c",
+    "md": "_md",
+    "json": "_json",
+    "py": "_py",
+    "txt": "_txt",
+    "sh": "_sh",
+    "svg": "_svg",
+    "jma": "_jma"
+  }
+}
