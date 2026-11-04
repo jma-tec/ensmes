@@ -36,7 +36,7 @@ terminar
 ```
 
 
-# Roadmap: El Ecosistema JMA
+## Roadmap: El Ecosistema JMA
 ☑ Ensamblador base y cargador en C.
 
 ☑ Soporte de control de flujo, memoria y offsets.
@@ -45,7 +45,7 @@ terminar
 
 □ Kernel y Sistema Operativo propio de propósito general.
 
-# Compilación y Uso
+## Compilación y Uso
 Para compilar el ensamblador en Linux (asegúrate de tener gcc instalado):
 
 bash
