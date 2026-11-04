@@ -38,8 +38,11 @@ terminar
 
 # Roadmap: El Ecosistema JMA
 ☑ Ensamblador base y cargador en C.
+
 ☑ Soporte de control de flujo, memoria y offsets.
+
 □ Lenguaje de alto nivel.
+
 □ Kernel y Sistema Operativo propio de propósito general.
 
 # Compilación y Uso
@@ -56,7 +59,7 @@ Para ejecutarlo:
 bash
 ./ens ejecutar mi_programa.jma
 
-# ⚠️ AVISO IMPORTANTE: Estado del Proyecto y Transparencia
+## ⚠️ AVISO IMPORTANTE: Estado del Proyecto y Transparencia
 Quiero ser totalmente honesto con cualquiera que se acerque a este repositorio. ENSMES es un proyecto en desarrollo temprano y experimental.
 
 El código puede tener errores: Aunque el núcleo funcional (compilador y cargador) ha sido probado y funciona, es muy probable que existan bugs ocultos, casos límite no cubiertos o comportamientos inesperados.
@@ -67,5 +70,5 @@ Esto no es un producto terminado: Estoy aprendiendo y expandiendo mis conocimien
 
 Si encuentras algún error, una instrucción mal documentada, un fallo de compilación o simplemente algo que no cuadra, te agradecería enormemente que lo notificaras. Puedes abrir un Issue en este repositorio o enviar una sugerencia. La crítica constructiva y la ayuda de la comunidad son fundamentales para que este ecosistema crezca y sea robusto.
 
-# 🤝 Contribuciones
+## 🤝 Contribuciones
 Si compartes la visión de crear tecnología nativa en español y de bajo nivel, ¡las ideas, reportes de bugs, críticas y sugerencias son más que bienvenidas!
