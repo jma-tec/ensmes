@@ -1,0 +1,27 @@
+.datos
+buffer:
+reservar_byte 10
+
+.codigo
+inicio:
+    cargar_direccion buffer, r_puntero64
+
+    # Dividimos 20 entre 4
+    copiar 20, r_acumulador64
+    copiar 4, r8_64
+    dividir r8_64
+    
+    # El resultado está en RAX. Sumamos 48 y guardamos
+    sumar 48, r_acumulador64
+    guardar_byte_puntero r_acumulador64, [r_puntero64]
+
+    # Salto de línea
+    copiar 10, r_acumulador64
+    guardar_byte_puntero r_acumulador64, [r_puntero64+1]
+
+    # Imprimimos 2 bytes
+    copiar 2, r_datos64
+    copiar 1, r_acumulador64
+    copiar 1, r_destino64
+    interrumpir
+    terminar

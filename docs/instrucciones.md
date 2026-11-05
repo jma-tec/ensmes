@@ -21,6 +21,17 @@ r_destino64 = RDI (64 bits)
 
 r_pila64 = RSP (64 bits)
 
+### Registros Especiales (64 bits)
+- `r8_64` = R8 (64 bits)
+- `r9_64` = R9 (64 bits)
+- `r10_64` = R10 (64 bits)
+- `r11_64` = R11 (64 bits)
+- `r12_64` = R12 (64 bits)
+- `r13_64` = R13 (64 bits)
+- `r14_64` = R14 (64 bits)
+- `r15_64` = R15 (64 bits)
+
+
 2. Conjunto de Instrucciones:
 
 1. pausa
@@ -52,6 +63,8 @@ Descripción: Realiza una llamada al sistema (sys_exit) para finalizar el progra
 Operandos: 
 - Inmediato a Registro: copiar <numero>, <registro_destino> (ej. copiar 12345, r_acumulador64)
 - Registro a Registro: copiar <registro_origen>, <registro_destino> (ej. copiar r_base64, r_acumulador64)
+
+**Registros soportados:** Todos los registros base (`r_acumulador64`... `r_pila64`) y los especiales (`r8_64`... `r15_64`).
 
 Descripción: Mueve (copia) un valor inmediato o el contenido de un registro origen a un registro destino. No afecta a los flags de la CPU.
 
@@ -130,6 +143,10 @@ Copia el valor del puntero de pila (RSP) a otro registro.
 Operandos: 
 - Inmediato a Registro: sumar <numero>, <registro_destino> (ej. sumar 10, r_acumulador64)
 - Registro a Registro: sumar <registro_origen>, <registro_destino> (ej. sumar r_base64, r_acumulador64)
+
+**Registros soportados:** Todos los registros base (`r_acumulador64`... `r_pila64`) y los especiales (`r8_64`... `r15_64`).
+
+*(Nota técnica: Para los registros r8-r15, el ensamblador utiliza un atajo matemático basado en el prefijo REX y la máscara `& 7` para generar el ModR/M correcto sin necesidad de if/else redundantes).*
 
 Descripción: Suma el valor inmediato o el contenido del registro origen al registro destino, guardando el resultado en el destino. Afecta a los flags de la CPU.
 
@@ -221,6 +238,9 @@ Operandos:
 - Inmediato a Registro: restar <numero>, <registro_destino> (ej. restar 10, r_acumulador64)
 - Registro a Registro: restar <registro_origen>, <registro_destino> (ej. restar r_base64, r_acumulador64)
 
+**Registros soportados:** Todos los registros base (`r_acumulador64`... `r_pila64`) y los especiales (`r8_64`... `r15_64`).
+
+
 Descripción: Resta el valor inmediato o el contenido del registro origen al registro destino, guardando el resultado en el destino. Afecta a los flags de la CPU.
 
 --- MODO INMEDIATO (Inmediato a Registro) ---
@@ -310,6 +330,9 @@ Destino: r_pila64 (RSP)
 Operandos: 
 - Inmediato a Registro: multiplicar <numero>, <registro_destino> (ej. multiplicar 10, r_acumulador64)
 - Registro a Registro: multiplicar <registro_origen>, <registro_destino> (ej. multiplicar r_base64, r_acumulador64)
+
+**Registros soportados:** Todos los registros base (`r_acumulador64`... `r_pila64`) y los especiales (`r8_64`... `r15_64`).
+
 
 Descripción: Multiplica el valor inmediato (32 bits) o el contenido del registro origen por el registro destino, guardando el resultado en el destino. Afecta a los flags de la CPU (especialmente el de desbordamiento).
 
@@ -421,6 +444,8 @@ Saltos hacia adelante: Si la etiqueta aún no ha sido leída, el ensamblador esc
 Operandos: 
 - Inmediato a Registro: comparar <numero>, <registro_destino> (ej. comparar 10, r_acumulador64)
 - Registro a Registro: comparar <registro_origen>, <registro_destino> (ej. comparar r_base64, r_acumulador64)
+
+**Registros soportados:** Todos los registros base (`r_acumulador64`... `r_pila64`) y los especiales (`r8_64`... `r15_64`).
 
 Descripción: Resta el operando origen al operando destino, pero **no guarda el resultado**. Su única función es actualizar los flags de la CPU (como Zero Flag, Sign Flag, etc.) para que una instrucción de salto condicional posterior (como `saltar_si_igual` o `saltar_si_mayor`) pueda decidir si saltar o no.
 
@@ -576,6 +601,8 @@ Descripción de la distancia: El valor int32 es la distancia en bytes desde el f
 Operandos: Registro (ej. dividir r_datos64).
 
 Descripción: Divide el valor de RDX:RAX entre el registro especificado. La instrucción limpia RDX a cero antes de dividir para que el dividendo sea solo el valor de RAX. El cociente se guarda en RAX y el resto en RDX.
+
+**Registros soportados:** Todos los registros base (`r_acumulador64`... `r_pila64`) y los especiales (`r8_64`... `r15_64`).
 
 Secuencia de bytes generada (ej. dividir r_datos64):
 
