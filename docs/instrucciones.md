@@ -3,33 +3,55 @@ Referencia Técnica: Ensamblador Modular Español
 1. Mapa de Registros
 Para mantener la sintaxis en español, el ensamblador mapea los siguientes nombres a los registros nativos de la arquitectura x86_64:
 
-r_acumulador32 = EAX (32 bits)
+### Registros de 64 bits (QWORD)
+| Nombre en ENSMES | Registro x86_64 | ID | Tipo |
+| :--- | :--- | :--- | :--- |
+| `r_acumulador64` | RAX | 0 | Clásico |
+| `r_contador64` | RCX | 1 | Clásico |
+| `r_datos64` | RDX | 2 | Clásico |
+| `r_base64` | RBX | 3 | Clásico |
+| `r_pila64` | RSP | 4 | Clásico |
+| `r_puntero64` | RSI | 6 | Clásico |
+| `r_destino64` | RDI | 7 | Clásico |
+| `r8_64` - `r15_64` | R8 - R15 | 8 - 15 | Especiales |
 
-r_acumulador64 = RAX (64 bits)
+### Registros de 32 bits (DWORD)
+| Nombre en ENSMES | Registro x86_64 | ID | Tipo |
+| :--- | :--- | :--- | :--- |
+| `r_acumulador32` | EAX | 0 | Clásico |
+| `r_contador32` | ECX | 1 | Clásico |
+| `r_datos32` | EDX | 2 | Clásico |
+| `r_base32` | EBX | 3 | Clásico |
+| `r_pila32` | ESP | 4 | Clásico |
+| `r_puntero32` | ESI | 6 | Clásico |
+| `r_destino32` | EDI | 7 | Clásico |
+| `r8_32` - `r15_32` | R8D - R15D | 8 - 15 | Especiales |
 
-r_base32 = EBX (32 bits)
+### Registros de 16 bits (WORD)
+| Nombre en ENSMES | Registro x86_64 | ID | Tipo |
+| :--- | :--- | :--- | :--- |
+| `r_acumulador16` | AX | 0 | Clásico |
+| `r_contador16` | CX | 1 | Clásico |
+| `r_datos16` | DX | 2 | Clásico |
+| `r_base16` | BX | 3 | Clásico |
+| `r_pila16` | SP | 4 | Clásico |
+| `r_puntero16` | SI | 6 | Clásico |
+| `r_destino16` | DI | 7 | Clásico |
+| `r8_16` - `r15_16` | R8W - R15W | 8 - 15 | Especiales |
 
-r_base64 = RBX (64 bits)
+### Registros de 8 bits (BYTE)
+| Nombre en ENSMES | Registro x86_64 | ID | Tipo |
+| :--- | :--- | :--- | :--- |
+| `r_acumulador8` | AL | 0 | Clásico |
+| `r_contador8` | CL | 1 | Clásico |
+| `r_datos8` | DL | 2 | Clásico |
+| `r_base8` | BL | 3 | Clásico |
+| `r_pila8` | SPL | 4 | Clásico (Requiere REX) |
+| `r_puntero8` | SIL | 6 | Clásico (Requiere REX) |
+| `r_destino8` | DIL | 7 | Clásico (Requiere REX) |
+| `r8_8` - `r15_8` | R8B - R15B | 8 - 15 | Especiales |
 
-r_contador64 = RCX (64 bits)
-
-r_datos64 = RDX (64 bits)
-
-r_puntero64 = RSI (64 bits)
-
-r_destino64 = RDI (64 bits)
-
-r_pila64 = RSP (64 bits)
-
-### Registros Especiales (64 bits)
-- `r8_64` = R8 (64 bits)
-- `r9_64` = R9 (64 bits)
-- `r10_64` = R10 (64 bits)
-- `r11_64` = R11 (64 bits)
-- `r12_64` = R12 (64 bits)
-- `r13_64` = R13 (64 bits)
-- `r14_64` = R14 (64 bits)
-- `r15_64` = R15 (64 bits)
+(Nota: copiar permite mover datos entre registros de distinto tamaño)
 
 
 2. Conjunto de Instrucciones:
@@ -65,6 +87,7 @@ Operandos:
 - Registro a Registro: copiar <registro_origen>, <registro_destino> (ej. copiar r_base64, r_acumulador64)
 
 **Registros soportados:** Todos los registros base (`r_acumulador64`... `r_pila64`) y los especiales (`r8_64`... `r15_64`).
+**Registros soportados:** Todos los registros base y los especiales de 64, 32, 16 y 8 bits.
 
 Descripción: Mueve (copia) un valor inmediato o el contenido de un registro origen a un registro destino. No afecta a los flags de la CPU.
 
