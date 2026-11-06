@@ -1,0 +1,89 @@
+.datos
+buffer:
+reservar_byte 15
+
+.codigo
+inicio:
+    cargar_direccion buffer, r_puntero64
+
+    # ==========================================
+    # 1. RESTA INMEDIATA (8, 16, 32, 64 bits)
+    # ==========================================
+    
+    # 8 bits (AL)
+    copiar 66, r_acumulador8
+    restar 1, r_acumulador8
+    copiar r_acumulador8, r_acumulador64
+    guardar_byte_puntero r_acumulador64, [r_puntero64]
+    sumar 1, r_puntero64
+
+    # 16 bits especial (r8w)
+    copiar 66, r8_16
+    restar 1, r8_16
+    copiar r8_16, r_acumulador64
+    guardar_byte_puntero r_acumulador64, [r_puntero64]
+    sumar 1, r_puntero64
+
+    # 32 bits especial (r10d)
+    copiar 66, r10_32
+    restar 1, r10_32
+    copiar r10_32, r_acumulador64
+    guardar_byte_puntero r_acumulador64, [r_puntero64]
+    sumar 1, r_puntero64
+
+    # 64 bits especial (r11)
+    copiar 66, r11_64
+    restar 1, r11_64
+    copiar r11_64, r_acumulador64
+    guardar_byte_puntero r_acumulador64, [r_puntero64]
+    sumar 1, r_puntero64
+
+    # ==========================================
+    # 2. RESTA REGISTRO A REGISTRO (8, 16, 32, 64 bits)
+    # ==========================================
+    
+    # 8 bits clásicos (AL - BL)
+    copiar 66, r_acumulador8
+    copiar 1, r_base8
+    restar r_base8, r_acumulador8
+    copiar r_acumulador8, r_acumulador64
+    guardar_byte_puntero r_acumulador64, [r_puntero64]
+    sumar 1, r_puntero64
+
+    # 16 bits especiales (r8w - r9w)
+    copiar 66, r8_16
+    copiar 1, r9_16
+    restar r9_16, r8_16
+    copiar r8_16, r_acumulador64
+    guardar_byte_puntero r_acumulador64, [r_puntero64]
+    sumar 1, r_puntero64
+
+    # 32 bits clásico - especial (EAX - r10d)
+    copiar 66, r_acumulador32
+    copiar 1, r10_32
+    restar r10_32, r_acumulador32
+    copiar r_acumulador32, r_acumulador64
+    guardar_byte_puntero r_acumulador64, [r_puntero64]
+    sumar 1, r_puntero64
+
+    # 64 bits especiales (r11 - r12)
+    copiar 66, r11_64
+    copiar 1, r12_64
+    restar r12_64, r11_64
+    copiar r11_64, r_acumulador64
+    guardar_byte_puntero r_acumulador64, [r_puntero64]
+    sumar 1, r_puntero64
+
+    # ==========================================
+    # IMPRIMIR
+    # ==========================================
+    copiar 10, r_acumulador64
+    guardar_byte_puntero r_acumulador64, [r_puntero64]
+
+    cargar_direccion buffer, r_puntero64
+    copiar 9, r_datos64
+    copiar 1, r_acumulador64
+    copiar 1, r_destino64
+    interrumpir
+
+    terminar
