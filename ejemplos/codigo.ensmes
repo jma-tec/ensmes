@@ -1,0 +1,61 @@
+.datos
+buffer:
+reservar_byte 10
+
+.codigo
+inicio:
+    cargar_direccion buffer, r_puntero64
+
+    # ==========================================
+    # 1. Suma de 8 bits clásicos (AL + BL)
+    # ==========================================
+    copiar 64, r_acumulador8    # AL = 64
+    copiar 1, r_base8           # BL = 1
+    sumar r_acumulador8, r_base8 # BL = BL + AL = 65
+    copiar r_base8, r_acumulador64
+    guardar_byte_puntero r_acumulador64, [r_puntero64]
+    sumar 1, r_puntero64
+
+    # ==========================================
+    # 2. Suma de 16 bits especiales (r8w + r9w)
+    # ==========================================
+    copiar 64, r8_16            # r8w = 64
+    copiar 1, r9_16             # r9w = 1
+    sumar r8_16, r9_16          # r9w = r9w + r8w = 65
+    copiar r9_16, r_acumulador64
+    guardar_byte_puntero r_acumulador64, [r_puntero64]
+    sumar 1, r_puntero64
+
+    # ==========================================
+    # 3. Suma de 32 bits clásico a especial (eax + r10d)
+    # ==========================================
+    copiar 64, r_acumulador32   # EAX = 64
+    copiar 1, r10_32            # r10d = 1
+    sumar r_acumulador32, r10_32 # r10d = r10d + EAX = 65
+    copiar r10_32, r_acumulador64
+    guardar_byte_puntero r_acumulador64, [r_puntero64]
+    sumar 1, r_puntero64
+
+    # ==========================================
+    # 4. Suma de 64 bits especiales (r11 + r12)
+    # ==========================================
+    copiar 64, r11_64           # r11 = 64
+    copiar 1, r12_64            # r12 = 1
+    sumar r11_64, r12_64        # r12 = r12 + r11 = 65
+    copiar r12_64, r_acumulador64
+    guardar_byte_puntero r_acumulador64, [r_puntero64]
+    sumar 1, r_puntero64
+
+    # ==========================================
+    # IMPRIMIR
+    # ==========================================
+    copiar 10, r_acumulador64
+    guardar_byte_puntero r_acumulador64, [r_puntero64]
+
+    cargar_direccion buffer, r_puntero64
+    copiar 5, r_datos64
+    copiar 1, r_acumulador64
+    copiar 1, r_destino64
+    interrumpir
+
+    terminar

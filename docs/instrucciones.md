@@ -168,6 +168,7 @@ Operandos:
 - Registro a Registro: sumar <registro_origen>, <registro_destino> (ej. sumar r_base64, r_acumulador64)
 
 **Registros soportados:** Todos los registros base (`r_acumulador64`... `r_pila64`) y los especiales (`r8_64`... `r15_64`).
+**Registros soportados:** Todos los registros y todos los tamaños.
 
 *(Nota técnica: Para los registros r8-r15, el ensamblador utiliza un atajo matemático basado en el prefijo REX y la máscara `& 7` para generar el ModR/M correcto sin necesidad de if/else redundantes).*
 
