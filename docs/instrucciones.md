@@ -582,9 +582,17 @@ Descripción: Indica que las siguientes líneas contienen instrucciones ejecutab
 
 15. .datos (Sección de Datos)
 
-Descripción: Indica que las siguientes líneas contienen datos inicializados (variables, strings, etc.). Estos datos se escriben al final del archivo binario.
+Descripción: Indica que las siguientes líneas contienen datos inicializados (variables globales, strings, etc.). Estos datos se escriben físicamente en el archivo binario y se cargan en memoria al ejecutar.
 
-16. Directivas de definicion de datos
+16. .constantes (Sección de Constantes)
+
+Descripción: Almacena datos de solo lectura (como strings de texto fijos). Se escriben en el archivo binario, pero el cargador los mapea en una zona de memoria protegida contra escritura.
+
+17. .reservado (Sección de Memoria Reservada / BSS)
+
+Descripción: Reserva espacio en memoria para variables no inicializadas. Esta sección NO ocupa espacio físico en el archivo `.jma` (no se escriben ceros en el disco). El cargador lee el tamaño reservado desde la cabecera y le pide al Sistema Operativo memoria limpia (llena de ceros) usando `mmap`.
+
+18. Directivas de definicion de datos
 
 definir_byte (1 byte): Escribe un valor de 8 bits.
 
@@ -594,7 +602,7 @@ definir_doble (4 bytes): Escribe un valor de 32 bits (little-endian).
 
 definir_cuadruple (8 bytes): Escribe un valor de 64 bits (little-endian).
 
-17. Directivas de reserva de datos
+19. Directivas de reserva de datos
 
 reservar_byte (1 bytes): Reserva N bytes en cero.
 
@@ -605,7 +613,7 @@ reservar_doble (4 bytes): Reserva N dobles palabras (N*4 bytes) en cero.
 reservar_cuadruple (8 bytes): Reserva N cuádruples palabras (N*8 bytes) en cero.
 
 
-18. cargar_direccion (LEA)
+20. cargar_direccion (LEA)
 
 Operandos: Etiqueta, Registro (ej. cargar_direccion mensaje, r_base64).
 
@@ -620,7 +628,7 @@ Opcode base 0x48 0x8D:
 Descripción de la distancia: El valor int32 es la distancia en bytes desde el final de la instrucción hasta la etiqueta. Soporta backpatching si la etiqueta está más abajo en el código.
 
 
-19. dividir (DIV)
+21. dividir (DIV)
 
 Operandos: Registro (ej. dividir r_datos64).
 
@@ -648,7 +656,7 @@ r_puntero64 -> 48 F7 F6 (DIV RSI)
 
 r_destino64 -> 48 F7 F7 (DIV RDI)
 
-20. o_exclusivo (XOR)
+22. o_exclusivo (XOR)
 
 Operandos: Registro_origen, Registro_destino (ej. o_exclusivo r_base64, r_acumulador64).
 
@@ -714,7 +722,7 @@ Destino: r_pila64 (RSP)
   0x48 0x31 0xFC -> XOR RSP, RDI (origen: r_destino64)
   0x48 0x31 0xE4 -> XOR RSP, RSP (origen: r_pila64 - limpiar)
 
-21. guardar_puntero (MOV [reg + offset], reg)
+23. guardar_puntero (MOV [reg + offset], reg)
 
 Operandos: Registro_origen, [Registro_direccion + offset] (ej. guardar_puntero r_acumulador64, [r_base64+8]).
 
@@ -729,7 +737,7 @@ Opcode base 0x48 0x89 (MOV de 64 bits):
 [ADVERTENCIA CRÍTICA]
 Esta instrucción escribe 8 bytes (64 bits). Si se usa para escribir caracteres (bytes) en un buffer, los 7 bytes posteriores se sobrescribirán con ceros. Usar 'guardar_byte_puntero' para texto.
 
-22. guardar_byte_puntero (MOV BYTE PTR [reg + offset], reg8)
+24. guardar_byte_puntero (MOV BYTE PTR [reg + offset], reg8)
 
 Operandos: Registro_origen, [Registro_direccion + offset] (ej. guardar_byte_puntero r_acumulador64, [r_base64+1]).
 
@@ -744,7 +752,7 @@ Ejemplo con offset: guardar_byte_puntero r_acumulador64, [r_base64+1]
 
 [Nota]: Esta instrucción soporta la matriz completa de 7x7 registros base y registros origen, más la lógica de offset (ModR/M | 0x80).
 
-23. saltar_si_mayor (JG)
+25. saltar_si_mayor (JG)
 
 Operandos: Etiqueta (ej. saltar_si_mayor fin).
 
@@ -752,7 +760,7 @@ Opcode: 0x0F 0x8F + int32 (Distancia relativa de 32 bits).
 
 Descripción: Salta a la etiqueta si la última comparación resultó en que el operando destino es estrictamente mayor que el origen (usando comparación con signo). Soporta backpatching.
 
-24. saltar_si_menor (JL)
+26. saltar_si_menor (JL)
 
 Operandos: Etiqueta (ej. saltar_si_menor bucle).
 
@@ -760,7 +768,7 @@ Opcode: 0x0F 0x8C + int32 (Distancia relativa de 32 bits).
 
 Descripción: Salta a la etiqueta si la última comparación resultó en que el operando destino es estrictamente menor que el origen. Soporta backpatching.
 
-25. saltar_si_mayor_o_igual (JGE)
+27. saltar_si_mayor_o_igual (JGE)
 
 Operandos: Etiqueta.
 
@@ -768,7 +776,7 @@ Opcode: 0x0F 0x8D + int32.
 
 Descripción: Salta a la etiqueta si el destino es mayor o igual que el origen. Soporta backpatching.
 
-26. saltar_si_menor_o_igual (JLE)
+28. saltar_si_menor_o_igual (JLE)
 
 Operandos: Etiqueta.
 
@@ -776,7 +784,7 @@ Opcode: 0x0F 0x8E + int32.
 
 Descripción: Salta a la etiqueta si el destino es menor o igual que el origen. Soporta backpatching.
 
-27. guardar_indirecto (MOV [reg], reg)
+29. guardar_indirecto (MOV [reg], reg)
 
 Operandos: Registro_origen, [Registro_direccion] (ej. guardar_indirecto r_acumulador64, [r_puntero64]).
 
@@ -853,7 +861,7 @@ Si la dirección está en r_pila64 (RSP):
 
 [ADVERTENCIA]: Al igual que guardar_puntero, esta instrucción escribe 64 bits (8 bytes). Si se usa con buffers de bytes (como strings), sobrescribirá los 7 bytes siguientes a la dirección. Para escribir un solo byte, usar 'guardar_byte_puntero'.
 
-28. desplazar_izquierda (SHL)
+30. desplazar_izquierda (SHL)
 
 Operandos: 
 - Inmediato a Registro: desplazar_izquierda <numero>, <registro_destino> (ej. desplazar_izquierda 3, r_acumulador64)
@@ -884,7 +892,7 @@ MODO REGISTRO A REGISTRO (El origen SIEMPRE es r_contador8 / CL):
   0x48 0xD3 0xE4 -> SHL RSP, CL (Destino: r_pila64)
 
 
-29. desplazar_derecha (SHR)
+31. desplazar_derecha (SHR)
 
 Operandos: 
 - Inmediato a Registro: desplazar_derecha <numero>, <registro_destino> (ej. desplazar_derecha 2, r_acumulador64)
@@ -914,7 +922,7 @@ MODO REGISTRO A REGISTRO (El origen SIEMPRE es r_contador8 / CL):
   0x48 0xD3 0xEF -> SHR RDI, CL (Destino: r_destino64)
   0x48 0xD3 0xEC -> SHR RSP, CL (Destino: r_pila64)
 
-30. y (AND - Y Lógico)
+32. y (AND - Y Lógico)
 
 Operandos: 
 - Inmediato a Registro: y <numero>, <registro_destino> (ej. y 255, r_acumulador64)
@@ -1001,7 +1009,7 @@ Destino: r_pila64 (RSP)
   0x48 0x21 0xE4 -> AND RSP, RSP (origen: r_pila64)
 
 
-31. o (OR - O Lógico)
+33. o (OR - O Lógico)
 
 Operandos: 
 - Inmediato a Registro: o <numero>, <registro_destino> (ej. o 128, r_acumulador64)
@@ -1087,7 +1095,7 @@ Destino: r_pila64 (RSP)
   0x48 0x09 0xFC -> OR RSP, RDI (origen: r_destino64)
   0x48 0x09 0xE4 -> OR RSP, RSP (origen: r_pila64)
 
-32. cargar (MOV reg, [reg + offset] / MOV reg, [etiqueta])
+34. cargar (MOV reg, [reg + offset] / MOV reg, [etiqueta])
 
 Operandos: 
 - Etiqueta a Registro: cargar variable, r_acumulador64
@@ -1105,7 +1113,7 @@ Opcode base 0x48 0x8B (MOV reg, r/m64):
 Ejemplo: cargar [r_base64+8], r_acumulador64
 0x48 0x8B 0x83 0x08 0x00 0x00 0x00 -> MOV RAX, [RBX + 8]
 
-33. guardar_doble_puntero (MOV DWORD PTR [reg + offset], reg32)
+35. guardar_doble_puntero (MOV DWORD PTR [reg + offset], reg32)
 
 Operandos: Registro_origen_32, [Registro_direccion + offset] (ej. guardar_doble_puntero r_acumulador32, [r_base64+4]).
 
@@ -1121,7 +1129,7 @@ Ejemplo con offset: guardar_doble_puntero r_acumulador32, [r_base64+4]
 [Nota Técnica sobre Offsets]: 
 Para activar el direccionamiento con desplazamiento, el ensamblador coge el byte ModR/M base (ej. 0x03) y le aplica un OR a nivel de bits con 0x80 (0x03 | 0x80 = 0x83). Eso le indica a la CPU que los siguientes 4 bytes son el offset (disp32).
 
-34. cargar_doble_puntero (MOV reg32, DWORD PTR [reg + offset])
+36. cargar_doble_puntero (MOV reg32, DWORD PTR [reg + offset])
 
 Operandos: [Registro_direccion + offset], Registro_destino_32 (ej. cargar_doble_puntero [r_base64+4], r_acumulador32).
 

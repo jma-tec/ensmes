@@ -1,0 +1,51 @@
+.constantes
+saludo:
+definir_byte 72 # 'H'
+definir_byte 111 # 'o'
+definir_byte 108 # 'l'
+definir_byte 97  # 'a'
+definir_byte 33  # '!'
+definir_byte 10  # '\n'
+
+.reservado
+buffer:
+reservar_byte 16
+
+.codigo
+inicio:
+    # 1. Imprimir desde .constantes ("Hola!\n")
+    cargar_direccion saludo, r_puntero64
+    copiar 6, r_datos64
+    copiar 1, r_acumulador64
+    copiar 1, r_destino64
+    interrumpir
+
+    # 2. Probar .reservado (Buffer en BSS, inicializado a 0 por mmap)
+    copiar 5, r_acumulador8
+    cargar_direccion buffer, r_puntero64
+    guardar_byte_puntero r_acumulador8, [r_puntero64]
+
+    # 3. Probar optimización de inmediatos
+    copiar 300, r_acumulador8     # Caso 1 (optimizado a MOV r32)
+    copiar -5, r_base64           # Caso 2 (optimizado a MOV r64, imm32)
+    copiar 1099511627776, r8_64   # Caso 3 (gigante, 10 bytes)
+
+    # 4. Leer del buffer reservado y convertirlo a ASCII
+    cargar_direccion buffer, r_puntero64
+    cargar [r_puntero64], r_acumulador64
+    sumar 48, r_acumulador64      # 5 -> '5'
+    guardar_byte_puntero r_acumulador64, [r_puntero64]
+
+    # Salto de línea en el buffer
+    sumar 1, r_puntero64
+    copiar 10, r_acumulador64
+    guardar_byte_puntero r_acumulador64, [r_puntero64]
+
+    # 5. Imprimir '5\n'
+    cargar_direccion buffer, r_puntero64
+    copiar 2, r_datos64
+    copiar 1, r_acumulador64
+    copiar 1, r_destino64
+    interrumpir
+
+    terminar
