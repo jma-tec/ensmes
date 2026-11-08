@@ -1,83 +1,94 @@
+
 # ENSMES 🚀
 **El primer ensamblador x86_64 con sintaxis en español, diseñado para la Soberanía Tecnológica.**
 
-ENSMES es un ensamblador modular escrito en C que genera ejecutables en un formato propio (`.jma`). Nace con el objetivo de ser la base de un ecosistema completo de programación, abarcando desde un lenguaje de alto nivel hasta un Kernel y Sistema Operativo propio de propósito general.
+ENSMES es un ensamblador modular escrito en C que genera ejecutables en un formato propio (`.jma`). Nace con el objetivo de ser la base de un ecosistema completo de programación (Corporación JMA), abarcando desde un lenguaje de alto nivel hasta un Kernel y Sistema Operativo propio de propósito general (Agentes SO).
 
 ## Características actuales
-- Sintaxis legible en español (`copiar`, `sumar`, `saltar_si_igual`).
-- Formato de ejecutable propio (`.jma`) con cargador integrado usando `mmap` en direcciones fijas.
-- Soporte para operaciones aritméticas, lógicas y de control de flujo.
-- Manejo de memoria: acceso directo, indirecto y con offsets (`[registro + offset]`).
-- Soporte **en desarrollo** para registros de 8, 32 y 64 bits (siendo el ecosistema de 64 bits el núcleo actual y más maduro).
-- Total libertad en el orden de las secciones (`.datos` y `.codigo`).
+- **Sintaxis legible en español** (`copiar`, `sumar`, `saltar_si_igual`, `desplazar_izquierda`).
+- **Formato de ejecutable propio** (`.jma`) con cargador integrado usando `mmap` en direcciones fijas.
+- **ISA (Instruction Set Architecture) completa**: Soporte total para operaciones aritméticas (`sumar`, `restar`, `multiplicar`, `dividir`), lógicas (`y`, `o`, `o_exclusivo`) y desplazamientos.
+- **Soporte de registros total**: Todos los registros clásicos y especiales (`r8` a `r15`) en sus 4 tamaños (8, 16, 32 y 64 bits).
+- **Manejo avanzado de memoria**:
+  - Acceso directo por etiqueta.
+  - Acceso indirecto puro (`[registro]`).
+  - Acceso indirecto con offset (`[registro + offset]`).
+  - Cálculo completo de **ModR/M y SIB**, permitiendo usar cualquier registro base, incluyendo `r12` y `rsp`.
+- **Gestión de Pila**: Instrucciones `empujar` y `sacar` para todos los registros y tamaños.
+- **Modo Inmediato y Registro**: Las operaciones aceptan tanto valores inmediatos como paso de registro a registro.
+- **Total libertad** en el orden de las secciones (`.datos` y `.codigo`).
 
-## Ejemplo de código (Bucle en ENSMES)
+## Ejemplo de código (Memoria Indirecta y Registros Especiales)
 ```text
 .datos
-letra_a:
-definir_byte 65 # 'A'
+buffer:
+reservar_byte 16
 
 .codigo
 inicio:
-copiar 5, r_base64
-bucle:
-comparar 0, r_base64
-saltar_si_igual fin
-cargar_direccion letra_a, r_puntero64
-copiar 1, r_datos64
-copiar 1, r_acumulador64
-copiar 1, r_destino64
-interrumpir
-restar 1, r_base64
-saltar bucle
-fin:
-terminar
+    cargar_direccion buffer, r_puntero64
 
-```
+    # Escribir 5 en [r12_64] (Fuerza el uso de byte SIB)
+    copiar 5, r_acumulador8
+    guardar_puntero r_acumulador8, [r12_64]
 
+    # Leer de [r_puntero64] y sumar 1
+    cargar [r_puntero64], r15_64
+    sumar 1, r15_64
 
-## Roadmap: El Ecosistema JMA
+    # Imprimir el resultado (6) por pantalla
+    copiar r15_64, r_acumulador64
+    sumar 48, r_acumulador64
+    guardar_byte_puntero r_acumulador64, [r_puntero64]
+    
+    cargar_direccion buffer, r_puntero64
+    copiar 1, r_datos64
+    copiar 1, r_acumulador64
+    copiar 1, r_destino64
+    interrumpir
+
+    terminar
+Roadmap: El Ecosistema JMA
 ☑ Ensamblador base y cargador en C.
-
 ☑ Soporte de control de flujo, memoria y offsets.
-
-□ Lenguaje de alto nivel.
-
-□ Kernel y Sistema Operativo propio de propósito general.
-
-## Compilación y Uso
+☑ ISA Aritmética y Lógica completa (8, 16, 32, 64 bits).
+☑ Soporte completo de pila (Push/Pop).
+☑ Acceso a memoria indirecto complejo (SIB).
+□ Lenguaje de alto nivel (en desarrollo).
+□ Kernel y Sistema Operativo propio de propósito general (Agentes SO).
+Compilación y Uso
 Para compilar el ensamblador en Linux (asegúrate de tener gcc instalado):
 
 bash
-``gcc src/main.c src/ensamblador.c -o ens``
-
+gcc src/main.c src/ensamblador.c -o ens
 Para compilar un programa .ensmes:
 
 bash
-``./ens compilar mi_programa.ensmes``
-
+./ens compilar mi_programa.ensmes
 Para ejecutarlo:
 
 bash
-``./ens ejecutar mi_programa.jma``
+./ens ejecutar mi_programa.jma
+Estado del Proyecto y Transparencia
+Este es un proyecto en desarrollo temprano y experimental.
 
-## Estado del Proyecto y Transparencia
+Quiero ser totalmente honesto con cualquiera que se acerque a este repositorio:
 
-> **Este es un proyecto en desarrollo temprano y experimental.**
-> 
-> Quiero ser totalmente honesto con cualquiera que se acerque a este repositorio:
-> 
-> - **El código puede tener errores:** Aunque el núcleo funcional (compilador y cargador) ha sido probado, es probable que existan bugs ocultos o casos límite no cubiertos.
-> - **La documentación puede estar incompleta:** Es posible que falten detalles sobre ciertos opcodes o que algunos matices técnicos estén desactualizados.
-> - **Evolución constante:** Estoy aprendiendo y expandiendo mis conocimientos de arquitectura de computadores a medida que construyo ENSMES.
-> 
-> *Si encuentras algún error, una instrucción mal documentada o algo que no cuadra, agradecería enormemente que lo notificaras.*
+El código puede tener errores: Aunque el núcleo funcional (compilador y cargador) ha sido probado y la ISA es estable, es probable que existan bugs ocultos o casos límite no cubiertos.
 
-## Contribuciones
+La documentación puede estar incompleta: Es posible que falten detalles sobre ciertos opcodes o que algunos matices técnicos estén desactualizados.
 
-Actualmente, el proyecto se encuentra en una fase temprana de desarrollo. Sin embargo, si compartes la visión de crear tecnología nativa en español y de bajo nivel, **tu ayuda es más que bienvenida**. 
+Evolución constante: Estoy aprendiendo y expandiendo mis conocimientos de arquitectura de computadores a medida que construyo ENSMES.
+
+Si encuentras algún error, una instrucción mal documentada o algo que no cuadra, agradecería enormemente que lo notificaras.
+
+Contribuciones
+Actualmente, el proyecto se encuentra en una fase temprana de desarrollo. Sin embargo, si compartes la visión de crear tecnología nativa en español y de bajo nivel, tu ayuda es más que bienvenida.
 
 Puedes contribuir de las siguientes formas:
-- **Reportando bugs:** Abriendo un *Issue* si algo no funciona como debería.
-- **Sugiriendo mejoras:** Proponiendo nuevas instrucciones o mejoras en la arquitectura.
-- **Mejorando la documentación:** Si ves algo que falta o está mal explicado, ¡envía un *Pull Request*!
+
+Reportando bugs: Abriendo un Issue si algo no funciona como debería.
+
+Sugiriendo mejoras: Proponiendo nuevas instrucciones o mejoras en la arquitectura.
+
+Mejorando la documentación: Si ves algo que falta o está mal explicado, ¡envía un Pull Request!

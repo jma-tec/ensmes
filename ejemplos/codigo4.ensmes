@@ -1,0 +1,49 @@
+.datos
+buffer:
+reservar_byte 16
+
+.codigo
+inicio:
+    cargar_direccion buffer, r_puntero64
+
+    # 1. GUARDAR_BYTE_PUNTERO (8 bits con SIB)
+    copiar r_puntero64, r12_64
+    copiar 49, r_acumulador8      # ASCII '1' (49)
+    guardar_byte_puntero r_acumulador8, [r12_64]
+
+    # 2. GUARDAR_DOBLE_PUNTERO (32 bits con SIB + Offset)
+    copiar r_puntero64, r_pila64
+    copiar 50, r_acumulador32     # ASCII '2' (50)
+    guardar_doble_puntero r_acumulador32, [r_pila64+4]
+
+    # 3. GUARDAR_INDIRECTO (64 bits con SIB)
+    copiar r_puntero64, r13_64
+    sumar 8, r13_64
+    copiar 51, r_acumulador64     # ASCII '3' (51)
+    guardar_indirecto r_acumulador64, [r13_64]
+
+    # LEER Y COMPROBAR
+    cargar [r12_64], r_acumulador64
+    guardar_byte_puntero r_acumulador64, [r_puntero64]
+    sumar 1, r_puntero64
+
+    cargar [r_pila64+4], r_acumulador64
+    guardar_byte_puntero r_acumulador64, [r_puntero64]
+    sumar 1, r_puntero64
+
+    cargar [r13_64], r_acumulador64
+    guardar_byte_puntero r_acumulador64, [r_puntero64]
+    sumar 1, r_puntero64
+
+    # Salto de línea
+    copiar 10, r_acumulador64
+    guardar_byte_puntero r_acumulador64, [r_puntero64]
+
+    # Imprimir (3 caracteres + salto de línea = 4 bytes)
+    cargar_direccion buffer, r_puntero64
+    copiar 4, r_datos64
+    copiar 1, r_acumulador64
+    copiar 1, r_destino64
+    interrumpir
+
+    terminar
