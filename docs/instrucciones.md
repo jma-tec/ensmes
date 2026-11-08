@@ -859,6 +859,8 @@ Operandos:
 - Inmediato a Registro: desplazar_izquierda <numero>, <registro_destino> (ej. desplazar_izquierda 3, r_acumulador64)
 - Registro a Registro: desplazar_izquierda r_contador8, <registro_destino> (ej. desplazar_izquierda r_contador8, r_base64)
 
+Todos los registros soportados.
+
 Descripción: Desplaza los bits del registro destino hacia la izquierda. Esto equivale a multiplicar el valor por potencias de 2. 
 Nota sobre el origen: La arquitectura x86_64 exige que el registro que indica la cantidad de desplazamiento sea obligatoriamente 'r_contador8' (CL, los 8 bits bajos de RCX).
 
@@ -887,6 +889,8 @@ MODO REGISTRO A REGISTRO (El origen SIEMPRE es r_contador8 / CL):
 Operandos: 
 - Inmediato a Registro: desplazar_derecha <numero>, <registro_destino> (ej. desplazar_derecha 2, r_acumulador64)
 - Registro a Registro: desplazar_derecha r_contador8, <registro_destino> (ej. desplazar_derecha r_contador8, r_base64)
+
+Todos los registros soportados.
 
 Descripción: Desplaza los bits del registro destino hacia la derecha. Esto equivale a dividir el valor por potencias de 2 (de forma entera y sin signo). 
 Nota sobre el origen: Al igual que con el desplazamiento a la izquierda, el hardware obliga a que el registro contador sea 'r_contador8' (CL).

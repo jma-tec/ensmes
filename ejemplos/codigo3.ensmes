@@ -1,0 +1,53 @@
+.datos
+buffer:
+reservar_byte 16
+
+.codigo
+inicio:
+    cargar_direccion buffer, r_puntero64
+
+    # 1. Desplazar Izquierda Inmediato (2 << 2 = 8) -> 8 BITS
+    copiar 2, r_acumulador8
+    desplazar_izquierda 2, r_acumulador8
+    copiar r_acumulador8, r_acumulador64
+    sumar 48, r_acumulador64
+    guardar_byte_puntero r_acumulador64, [r_puntero64]
+    sumar 1, r_puntero64
+
+    # 2. Desplazar Derecha Inmediato (8 >> 2 = 2) -> 32 BITS
+    copiar 8, r_acumulador32
+    desplazar_derecha 2, r_acumulador32
+    copiar r_acumulador32, r_acumulador64
+    sumar 48, r_acumulador64
+    guardar_byte_puntero r_acumulador64, [r_puntero64]
+    sumar 1, r_puntero64
+
+    # 3. Desplazar Izquierda Registro (4 << 1 = 8) -> 64 BITS
+    copiar 4, r_base64
+    copiar 1, r_contador8
+    desplazar_izquierda r_contador8, r_base64
+    copiar r_base64, r_acumulador64
+    sumar 48, r_acumulador64
+    guardar_byte_puntero r_acumulador64, [r_puntero64]
+    sumar 1, r_puntero64
+
+    # 4. Desplazar Derecha Registro (8 >> 3 = 1) -> 16 BITS
+    copiar 8, r_datos16
+    copiar 3, r_contador8
+    desplazar_derecha r_contador8, r_datos16
+    copiar r_datos16, r_acumulador64
+    sumar 48, r_acumulador64
+    guardar_byte_puntero r_acumulador64, [r_puntero64]
+    sumar 1, r_puntero64
+
+    # Imprimir (4 caracteres + salto de línea = 5 bytes)
+    copiar 10, r_acumulador64
+    guardar_byte_puntero r_acumulador64, [r_puntero64]
+    
+    cargar_direccion buffer, r_puntero64
+    copiar 5, r_datos64
+    copiar 1, r_acumulador64
+    copiar 1, r_destino64
+    interrumpir
+
+    terminar

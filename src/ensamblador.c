@@ -1144,60 +1144,200 @@ void ensamblador_archivo(FILE *archivo_lectura, FILE *archivo_escritura)
             }
         }
         else if(strcmp(token, "desplazar_derecha") == 0) {
-            if(isdigit(token_numero[0])) {
-                // MODO INMEDIATO
-                if(strcmp(token_registros, "r_acumulador64") == 0) { fputc(0x48, archivo_escritura); fputc(0xC1, archivo_escritura); fputc(0xE8, archivo_escritura); }
-                else if(strcmp(token_registros, "r_base64") == 0) { fputc(0x48, archivo_escritura); fputc(0xC1, archivo_escritura); fputc(0xEB, archivo_escritura); }
+            if (isdigit(token_numero[0])) {
+                // MODO INMEDIATO (Manual y auditable)
+                int num = atoi(token_numero);
+
+                // 8 BITS (C0 /5 ib)
+                if(strcmp(token_registros, "r_acumulador8") == 0) { fputc(0xC0, archivo_escritura); fputc(0xE8, archivo_escritura); }
+                else if(strcmp(token_registros, "r_contador8") == 0) { fputc(0xC0, archivo_escritura); fputc(0xE9, archivo_escritura); }
+                else if(strcmp(token_registros, "r_datos8") == 0) { fputc(0xC0, archivo_escritura); fputc(0xEA, archivo_escritura); }
+                else if(strcmp(token_registros, "r_base8") == 0) { fputc(0xC0, archivo_escritura); fputc(0xEB, archivo_escritura); }
+                else if(strcmp(token_registros, "r_pila8") == 0) { fputc(0x40, archivo_escritura); fputc(0xC0, archivo_escritura); fputc(0xEC, archivo_escritura); }
+                else if(strcmp(token_registros, "r_puntero8") == 0) { fputc(0x40, archivo_escritura); fputc(0xC0, archivo_escritura); fputc(0xEE, archivo_escritura); }
+                else if(strcmp(token_registros, "r_destino8") == 0) { fputc(0x40, archivo_escritura); fputc(0xC0, archivo_escritura); fputc(0xEF, archivo_escritura); }
+                else if(strcmp(token_registros, "r8_8") == 0) { fputc(0x41, archivo_escritura); fputc(0xC0, archivo_escritura); fputc(0xE8, archivo_escritura); }
+                else if(strcmp(token_registros, "r9_8") == 0) { fputc(0x41, archivo_escritura); fputc(0xC0, archivo_escritura); fputc(0xE9, archivo_escritura); }
+                else if(strcmp(token_registros, "r10_8") == 0) { fputc(0x41, archivo_escritura); fputc(0xC0, archivo_escritura); fputc(0xEA, archivo_escritura); }
+                else if(strcmp(token_registros, "r11_8") == 0) { fputc(0x41, archivo_escritura); fputc(0xC0, archivo_escritura); fputc(0xEB, archivo_escritura); }
+                else if(strcmp(token_registros, "r12_8") == 0) { fputc(0x41, archivo_escritura); fputc(0xC0, archivo_escritura); fputc(0xEC, archivo_escritura); }
+                else if(strcmp(token_registros, "r13_8") == 0) { fputc(0x41, archivo_escritura); fputc(0xC0, archivo_escritura); fputc(0xED, archivo_escritura); }
+                else if(strcmp(token_registros, "r14_8") == 0) { fputc(0x41, archivo_escritura); fputc(0xC0, archivo_escritura); fputc(0xEE, archivo_escritura); }
+                else if(strcmp(token_registros, "r15_8") == 0) { fputc(0x41, archivo_escritura); fputc(0xC0, archivo_escritura); fputc(0xEF, archivo_escritura); }
+
+                // 16 BITS (66 C1 /5 ib)
+                else if(strcmp(token_registros, "r_acumulador16") == 0) { fputc(0x66, archivo_escritura); fputc(0xC1, archivo_escritura); fputc(0xE8, archivo_escritura); }
+                else if(strcmp(token_registros, "r_contador16") == 0) { fputc(0x66, archivo_escritura); fputc(0xC1, archivo_escritura); fputc(0xE9, archivo_escritura); }
+                else if(strcmp(token_registros, "r_datos16") == 0) { fputc(0x66, archivo_escritura); fputc(0xC1, archivo_escritura); fputc(0xEA, archivo_escritura); }
+                else if(strcmp(token_registros, "r_base16") == 0) { fputc(0x66, archivo_escritura); fputc(0xC1, archivo_escritura); fputc(0xEB, archivo_escritura); }
+                else if(strcmp(token_registros, "r_pila16") == 0) { fputc(0x66, archivo_escritura); fputc(0xC1, archivo_escritura); fputc(0xEC, archivo_escritura); }
+                else if(strcmp(token_registros, "r_puntero16") == 0) { fputc(0x66, archivo_escritura); fputc(0xC1, archivo_escritura); fputc(0xEE, archivo_escritura); }
+                else if(strcmp(token_registros, "r_destino16") == 0) { fputc(0x66, archivo_escritura); fputc(0xC1, archivo_escritura); fputc(0xEF, archivo_escritura); }
+                else if(strcmp(token_registros, "r8_16") == 0) { fputc(0x66, archivo_escritura); fputc(0x41, archivo_escritura); fputc(0xC1, archivo_escritura); fputc(0xE8, archivo_escritura); }
+                else if(strcmp(token_registros, "r9_16") == 0) { fputc(0x66, archivo_escritura); fputc(0x41, archivo_escritura); fputc(0xC1, archivo_escritura); fputc(0xE9, archivo_escritura); }
+                else if(strcmp(token_registros, "r10_16") == 0) { fputc(0x66, archivo_escritura); fputc(0x41, archivo_escritura); fputc(0xC1, archivo_escritura); fputc(0xEA, archivo_escritura); }
+                else if(strcmp(token_registros, "r11_16") == 0) { fputc(0x66, archivo_escritura); fputc(0x41, archivo_escritura); fputc(0xC1, archivo_escritura); fputc(0xEB, archivo_escritura); }
+                else if(strcmp(token_registros, "r12_16") == 0) { fputc(0x66, archivo_escritura); fputc(0x41, archivo_escritura); fputc(0xC1, archivo_escritura); fputc(0xEC, archivo_escritura); }
+                else if(strcmp(token_registros, "r13_16") == 0) { fputc(0x66, archivo_escritura); fputc(0x41, archivo_escritura); fputc(0xC1, archivo_escritura); fputc(0xED, archivo_escritura); }
+                else if(strcmp(token_registros, "r14_16") == 0) { fputc(0x66, archivo_escritura); fputc(0x41, archivo_escritura); fputc(0xC1, archivo_escritura); fputc(0xEE, archivo_escritura); }
+                else if(strcmp(token_registros, "r15_16") == 0) { fputc(0x66, archivo_escritura); fputc(0x41, archivo_escritura); fputc(0xC1, archivo_escritura); fputc(0xEF, archivo_escritura); }
+
+                // 32 BITS (C1 /5 ib)
+                else if(strcmp(token_registros, "r_acumulador32") == 0) { fputc(0xC1, archivo_escritura); fputc(0xE8, archivo_escritura); }
+                else if(strcmp(token_registros, "r_contador32") == 0) { fputc(0xC1, archivo_escritura); fputc(0xE9, archivo_escritura); }
+                else if(strcmp(token_registros, "r_datos32") == 0) { fputc(0xC1, archivo_escritura); fputc(0xEA, archivo_escritura); }
+                else if(strcmp(token_registros, "r_base32") == 0) { fputc(0xC1, archivo_escritura); fputc(0xEB, archivo_escritura); }
+                else if(strcmp(token_registros, "r_pila32") == 0) { fputc(0xC1, archivo_escritura); fputc(0xEC, archivo_escritura); }
+                else if(strcmp(token_registros, "r_puntero32") == 0) { fputc(0xC1, archivo_escritura); fputc(0xEE, archivo_escritura); }
+                else if(strcmp(token_registros, "r_destino32") == 0) { fputc(0xC1, archivo_escritura); fputc(0xEF, archivo_escritura); }
+                else if(strcmp(token_registros, "r8_32") == 0) { fputc(0x41, archivo_escritura); fputc(0xC1, archivo_escritura); fputc(0xE8, archivo_escritura); }
+                else if(strcmp(token_registros, "r9_32") == 0) { fputc(0x41, archivo_escritura); fputc(0xC1, archivo_escritura); fputc(0xE9, archivo_escritura); }
+                else if(strcmp(token_registros, "r10_32") == 0) { fputc(0x41, archivo_escritura); fputc(0xC1, archivo_escritura); fputc(0xEA, archivo_escritura); }
+                else if(strcmp(token_registros, "r11_32") == 0) { fputc(0x41, archivo_escritura); fputc(0xC1, archivo_escritura); fputc(0xEB, archivo_escritura); }
+                else if(strcmp(token_registros, "r12_32") == 0) { fputc(0x41, archivo_escritura); fputc(0xC1, archivo_escritura); fputc(0xEC, archivo_escritura); }
+                else if(strcmp(token_registros, "r13_32") == 0) { fputc(0x41, archivo_escritura); fputc(0xC1, archivo_escritura); fputc(0xED, archivo_escritura); }
+                else if(strcmp(token_registros, "r14_32") == 0) { fputc(0x41, archivo_escritura); fputc(0xC1, archivo_escritura); fputc(0xEE, archivo_escritura); }
+                else if(strcmp(token_registros, "r15_32") == 0) { fputc(0x41, archivo_escritura); fputc(0xC1, archivo_escritura); fputc(0xEF, archivo_escritura); }
+
+                // 64 BITS (48 C1 /5 ib)
+                else if(strcmp(token_registros, "r_acumulador64") == 0) { fputc(0x48, archivo_escritura); fputc(0xC1, archivo_escritura); fputc(0xE8, archivo_escritura); }
                 else if(strcmp(token_registros, "r_contador64") == 0) { fputc(0x48, archivo_escritura); fputc(0xC1, archivo_escritura); fputc(0xE9, archivo_escritura); }
                 else if(strcmp(token_registros, "r_datos64") == 0) { fputc(0x48, archivo_escritura); fputc(0xC1, archivo_escritura); fputc(0xEA, archivo_escritura); }
+                else if(strcmp(token_registros, "r_base64") == 0) { fputc(0x48, archivo_escritura); fputc(0xC1, archivo_escritura); fputc(0xEB, archivo_escritura); }
+                else if(strcmp(token_registros, "r_pila64") == 0) { fputc(0x48, archivo_escritura); fputc(0xC1, archivo_escritura); fputc(0xEC, archivo_escritura); }
                 else if(strcmp(token_registros, "r_puntero64") == 0) { fputc(0x48, archivo_escritura); fputc(0xC1, archivo_escritura); fputc(0xEE, archivo_escritura); }
                 else if(strcmp(token_registros, "r_destino64") == 0) { fputc(0x48, archivo_escritura); fputc(0xC1, archivo_escritura); fputc(0xEF, archivo_escritura); }
-                else if(strcmp(token_registros, "r_pila64") == 0) { fputc(0x48, archivo_escritura); fputc(0xC1, archivo_escritura); fputc(0xEC, archivo_escritura); }
-                
-                int num = atoi(token_numero); 
-                fputc(num, archivo_escritura); 
+                else if(strcmp(token_registros, "r8_64") == 0) { fputc(0x49, archivo_escritura); fputc(0xC1, archivo_escritura); fputc(0xE8, archivo_escritura); }
+                else if(strcmp(token_registros, "r9_64") == 0) { fputc(0x49, archivo_escritura); fputc(0xC1, archivo_escritura); fputc(0xE9, archivo_escritura); }
+                else if(strcmp(token_registros, "r10_64") == 0) { fputc(0x49, archivo_escritura); fputc(0xC1, archivo_escritura); fputc(0xEA, archivo_escritura); }
+                else if(strcmp(token_registros, "r11_64") == 0) { fputc(0x49, archivo_escritura); fputc(0xC1, archivo_escritura); fputc(0xEB, archivo_escritura); }
+                else if(strcmp(token_registros, "r12_64") == 0) { fputc(0x49, archivo_escritura); fputc(0xC1, archivo_escritura); fputc(0xEC, archivo_escritura); }
+                else if(strcmp(token_registros, "r13_64") == 0) { fputc(0x49, archivo_escritura); fputc(0xC1, archivo_escritura); fputc(0xED, archivo_escritura); }
+                else if(strcmp(token_registros, "r14_64") == 0) { fputc(0x49, archivo_escritura); fputc(0xC1, archivo_escritura); fputc(0xEE, archivo_escritura); }
+                else if(strcmp(token_registros, "r15_64") == 0) { fputc(0x49, archivo_escritura); fputc(0xC1, archivo_escritura); fputc(0xEF, archivo_escritura); }
+
+                fputc(num, archivo_escritura);
             }
             else {
-                // MODO REGISTRO A REGISTRO (Usando CL)
-                if(strcmp(token_numero, "r_contador8") == 0) {
-                    if(strcmp(token_registros, "r_acumulador64") == 0) { fputc(0x48, archivo_escritura); fputc(0xD3, archivo_escritura); fputc(0xE8, archivo_escritura); } // SHR RAX, CL
-                    else if(strcmp(token_registros, "r_base64") == 0) { fputc(0x48, archivo_escritura); fputc(0xD3, archivo_escritura); fputc(0xEB, archivo_escritura); } // SHR RBX, CL
-                    else if(strcmp(token_registros, "r_contador64") == 0) { fputc(0x48, archivo_escritura); fputc(0xD3, archivo_escritura); fputc(0xE9, archivo_escritura); } // SHR RCX, CL
-                    else if(strcmp(token_registros, "r_datos64") == 0) { fputc(0x48, archivo_escritura); fputc(0xD3, archivo_escritura); fputc(0xEA, archivo_escritura); } // SHR RDX, CL
-                    else if(strcmp(token_registros, "r_puntero64") == 0) { fputc(0x48, archivo_escritura); fputc(0xD3, archivo_escritura); fputc(0xEE, archivo_escritura); } // SHR RSI, CL
-                    else if(strcmp(token_registros, "r_destino64") == 0) { fputc(0x48, archivo_escritura); fputc(0xD3, archivo_escritura); fputc(0xEF, archivo_escritura); } // SHR RDI, CL
-                    else if(strcmp(token_registros, "r_pila64") == 0) { fputc(0x48, archivo_escritura); fputc(0xD3, archivo_escritura); fputc(0xEC, archivo_escritura); } // SHR RSP, CL
+                // MODO REGISTRO A REGISTRO (Atajo Matemático - Solo CL)
+                if (strcmp(token_numero, "r_contador8") == 0) {
+                    int id_destino = obtener_id_registro(token_registros);
+                    int tam_destino = obtener_tamano_registro(token_registros);
+                    if (id_destino != -1 && tam_destino != 0) {
+                        int rex = 0x40;
+                        if (tam_destino == 64) rex |= 0x08;
+                        if (id_destino >= 8) rex |= 0x01;
+
+                        if (tam_destino == 16) fputc(0x66, archivo_escritura);
+                        if (rex != 0x40 || tam_destino == 8) fputc(rex, archivo_escritura);
+
+                        int opcode = (tam_destino == 8) ? 0xD2 : 0xD3;
+                        fputc(opcode, archivo_escritura);
+
+                        int modrm = 0xC0 | (5 << 3) | (id_destino & 7); // /5 para SHR
+                        fputc(modrm, archivo_escritura);
+                    }
                 }
             }
         }
         else if(strcmp(token, "desplazar_izquierda") == 0) {
-            if(isdigit(token_numero[0])) {
-                // MODO INMEDIATO
-                if(strcmp(token_registros, "r_acumulador64") == 0) { fputc(0x48, archivo_escritura); fputc(0xC1, archivo_escritura); fputc(0xE0, archivo_escritura); }
-                else if(strcmp(token_registros, "r_base64") == 0) { fputc(0x48, archivo_escritura); fputc(0xC1, archivo_escritura); fputc(0xE3, archivo_escritura); }
+            if (isdigit(token_numero[0])) {
+                // MODO INMEDIATO (Manual y auditable)
+                int num = atoi(token_numero);
+
+                // 8 BITS (C0 /4 ib)
+                if(strcmp(token_registros, "r_acumulador8") == 0) { fputc(0xC0, archivo_escritura); fputc(0xE0, archivo_escritura); }
+                else if(strcmp(token_registros, "r_contador8") == 0) { fputc(0xC0, archivo_escritura); fputc(0xE1, archivo_escritura); }
+                else if(strcmp(token_registros, "r_datos8") == 0) { fputc(0xC0, archivo_escritura); fputc(0xE2, archivo_escritura); }
+                else if(strcmp(token_registros, "r_base8") == 0) { fputc(0xC0, archivo_escritura); fputc(0xE3, archivo_escritura); }
+                else if(strcmp(token_registros, "r_pila8") == 0) { fputc(0x40, archivo_escritura); fputc(0xC0, archivo_escritura); fputc(0xE4, archivo_escritura); }
+                else if(strcmp(token_registros, "r_puntero8") == 0) { fputc(0x40, archivo_escritura); fputc(0xC0, archivo_escritura); fputc(0xE6, archivo_escritura); }
+                else if(strcmp(token_registros, "r_destino8") == 0) { fputc(0x40, archivo_escritura); fputc(0xC0, archivo_escritura); fputc(0xE7, archivo_escritura); }
+                else if(strcmp(token_registros, "r8_8") == 0) { fputc(0x41, archivo_escritura); fputc(0xC0, archivo_escritura); fputc(0xE0, archivo_escritura); }
+                else if(strcmp(token_registros, "r9_8") == 0) { fputc(0x41, archivo_escritura); fputc(0xC0, archivo_escritura); fputc(0xE1, archivo_escritura); }
+                else if(strcmp(token_registros, "r10_8") == 0) { fputc(0x41, archivo_escritura); fputc(0xC0, archivo_escritura); fputc(0xE2, archivo_escritura); }
+                else if(strcmp(token_registros, "r11_8") == 0) { fputc(0x41, archivo_escritura); fputc(0xC0, archivo_escritura); fputc(0xE3, archivo_escritura); }
+                else if(strcmp(token_registros, "r12_8") == 0) { fputc(0x41, archivo_escritura); fputc(0xC0, archivo_escritura); fputc(0xE4, archivo_escritura); }
+                else if(strcmp(token_registros, "r13_8") == 0) { fputc(0x41, archivo_escritura); fputc(0xC0, archivo_escritura); fputc(0xE5, archivo_escritura); }
+                else if(strcmp(token_registros, "r14_8") == 0) { fputc(0x41, archivo_escritura); fputc(0xC0, archivo_escritura); fputc(0xE6, archivo_escritura); }
+                else if(strcmp(token_registros, "r15_8") == 0) { fputc(0x41, archivo_escritura); fputc(0xC0, archivo_escritura); fputc(0xE7, archivo_escritura); }
+
+                // 16 BITS (66 C1 /4 ib)
+                else if(strcmp(token_registros, "r_acumulador16") == 0) { fputc(0x66, archivo_escritura); fputc(0xC1, archivo_escritura); fputc(0xE0, archivo_escritura); }
+                else if(strcmp(token_registros, "r_contador16") == 0) { fputc(0x66, archivo_escritura); fputc(0xC1, archivo_escritura); fputc(0xE1, archivo_escritura); }
+                else if(strcmp(token_registros, "r_datos16") == 0) { fputc(0x66, archivo_escritura); fputc(0xC1, archivo_escritura); fputc(0xE2, archivo_escritura); }
+                else if(strcmp(token_registros, "r_base16") == 0) { fputc(0x66, archivo_escritura); fputc(0xC1, archivo_escritura); fputc(0xE3, archivo_escritura); }
+                else if(strcmp(token_registros, "r_pila16") == 0) { fputc(0x66, archivo_escritura); fputc(0xC1, archivo_escritura); fputc(0xE4, archivo_escritura); }
+                else if(strcmp(token_registros, "r_puntero16") == 0) { fputc(0x66, archivo_escritura); fputc(0xC1, archivo_escritura); fputc(0xE6, archivo_escritura); }
+                else if(strcmp(token_registros, "r_destino16") == 0) { fputc(0x66, archivo_escritura); fputc(0xC1, archivo_escritura); fputc(0xE7, archivo_escritura); }
+                else if(strcmp(token_registros, "r8_16") == 0) { fputc(0x66, archivo_escritura); fputc(0x41, archivo_escritura); fputc(0xC1, archivo_escritura); fputc(0xE0, archivo_escritura); }
+                else if(strcmp(token_registros, "r9_16") == 0) { fputc(0x66, archivo_escritura); fputc(0x41, archivo_escritura); fputc(0xC1, archivo_escritura); fputc(0xE1, archivo_escritura); }
+                else if(strcmp(token_registros, "r10_16") == 0) { fputc(0x66, archivo_escritura); fputc(0x41, archivo_escritura); fputc(0xC1, archivo_escritura); fputc(0xE2, archivo_escritura); }
+                else if(strcmp(token_registros, "r11_16") == 0) { fputc(0x66, archivo_escritura); fputc(0x41, archivo_escritura); fputc(0xC1, archivo_escritura); fputc(0xE3, archivo_escritura); }
+                else if(strcmp(token_registros, "r12_16") == 0) { fputc(0x66, archivo_escritura); fputc(0x41, archivo_escritura); fputc(0xC1, archivo_escritura); fputc(0xE4, archivo_escritura); }
+                else if(strcmp(token_registros, "r13_16") == 0) { fputc(0x66, archivo_escritura); fputc(0x41, archivo_escritura); fputc(0xC1, archivo_escritura); fputc(0xE5, archivo_escritura); }
+                else if(strcmp(token_registros, "r14_16") == 0) { fputc(0x66, archivo_escritura); fputc(0x41, archivo_escritura); fputc(0xC1, archivo_escritura); fputc(0xE6, archivo_escritura); }
+                else if(strcmp(token_registros, "r15_16") == 0) { fputc(0x66, archivo_escritura); fputc(0x41, archivo_escritura); fputc(0xC1, archivo_escritura); fputc(0xE7, archivo_escritura); }
+
+                // 32 BITS (C1 /4 ib)
+                else if(strcmp(token_registros, "r_acumulador32") == 0) { fputc(0xC1, archivo_escritura); fputc(0xE0, archivo_escritura); }
+                else if(strcmp(token_registros, "r_contador32") == 0) { fputc(0xC1, archivo_escritura); fputc(0xE1, archivo_escritura); }
+                else if(strcmp(token_registros, "r_datos32") == 0) { fputc(0xC1, archivo_escritura); fputc(0xE2, archivo_escritura); }
+                else if(strcmp(token_registros, "r_base32") == 0) { fputc(0xC1, archivo_escritura); fputc(0xE3, archivo_escritura); }
+                else if(strcmp(token_registros, "r_pila32") == 0) { fputc(0xC1, archivo_escritura); fputc(0xE4, archivo_escritura); }
+                else if(strcmp(token_registros, "r_puntero32") == 0) { fputc(0xC1, archivo_escritura); fputc(0xE6, archivo_escritura); }
+                else if(strcmp(token_registros, "r_destino32") == 0) { fputc(0xC1, archivo_escritura); fputc(0xE7, archivo_escritura); }
+                else if(strcmp(token_registros, "r8_32") == 0) { fputc(0x41, archivo_escritura); fputc(0xC1, archivo_escritura); fputc(0xE0, archivo_escritura); }
+                else if(strcmp(token_registros, "r9_32") == 0) { fputc(0x41, archivo_escritura); fputc(0xC1, archivo_escritura); fputc(0xE1, archivo_escritura); }
+                else if(strcmp(token_registros, "r10_32") == 0) { fputc(0x41, archivo_escritura); fputc(0xC1, archivo_escritura); fputc(0xE2, archivo_escritura); }
+                else if(strcmp(token_registros, "r11_32") == 0) { fputc(0x41, archivo_escritura); fputc(0xC1, archivo_escritura); fputc(0xE3, archivo_escritura); }
+                else if(strcmp(token_registros, "r12_32") == 0) { fputc(0x41, archivo_escritura); fputc(0xC1, archivo_escritura); fputc(0xE4, archivo_escritura); }
+                else if(strcmp(token_registros, "r13_32") == 0) { fputc(0x41, archivo_escritura); fputc(0xC1, archivo_escritura); fputc(0xE5, archivo_escritura); }
+                else if(strcmp(token_registros, "r14_32") == 0) { fputc(0x41, archivo_escritura); fputc(0xC1, archivo_escritura); fputc(0xE6, archivo_escritura); }
+                else if(strcmp(token_registros, "r15_32") == 0) { fputc(0x41, archivo_escritura); fputc(0xC1, archivo_escritura); fputc(0xE7, archivo_escritura); }
+
+                // 64 BITS (48 C1 /4 ib)
+                else if(strcmp(token_registros, "r_acumulador64") == 0) { fputc(0x48, archivo_escritura); fputc(0xC1, archivo_escritura); fputc(0xE0, archivo_escritura); }
                 else if(strcmp(token_registros, "r_contador64") == 0) { fputc(0x48, archivo_escritura); fputc(0xC1, archivo_escritura); fputc(0xE1, archivo_escritura); }
                 else if(strcmp(token_registros, "r_datos64") == 0) { fputc(0x48, archivo_escritura); fputc(0xC1, archivo_escritura); fputc(0xE2, archivo_escritura); }
+                else if(strcmp(token_registros, "r_base64") == 0) { fputc(0x48, archivo_escritura); fputc(0xC1, archivo_escritura); fputc(0xE3, archivo_escritura); }
+                else if(strcmp(token_registros, "r_pila64") == 0) { fputc(0x48, archivo_escritura); fputc(0xC1, archivo_escritura); fputc(0xE4, archivo_escritura); }
                 else if(strcmp(token_registros, "r_puntero64") == 0) { fputc(0x48, archivo_escritura); fputc(0xC1, archivo_escritura); fputc(0xE6, archivo_escritura); }
                 else if(strcmp(token_registros, "r_destino64") == 0) { fputc(0x48, archivo_escritura); fputc(0xC1, archivo_escritura); fputc(0xE7, archivo_escritura); }
-                else if(strcmp(token_registros, "r_pila64") == 0) { fputc(0x48, archivo_escritura); fputc(0xC1, archivo_escritura); fputc(0xE4, archivo_escritura); }
-                
-                int num = atoi(token_numero); 
-                fputc(num, archivo_escritura); 
+                else if(strcmp(token_registros, "r8_64") == 0) { fputc(0x49, archivo_escritura); fputc(0xC1, archivo_escritura); fputc(0xE0, archivo_escritura); }
+                else if(strcmp(token_registros, "r9_64") == 0) { fputc(0x49, archivo_escritura); fputc(0xC1, archivo_escritura); fputc(0xE1, archivo_escritura); }
+                else if(strcmp(token_registros, "r10_64") == 0) { fputc(0x49, archivo_escritura); fputc(0xC1, archivo_escritura); fputc(0xE2, archivo_escritura); }
+                else if(strcmp(token_registros, "r11_64") == 0) { fputc(0x49, archivo_escritura); fputc(0xC1, archivo_escritura); fputc(0xE3, archivo_escritura); }
+                else if(strcmp(token_registros, "r12_64") == 0) { fputc(0x49, archivo_escritura); fputc(0xC1, archivo_escritura); fputc(0xE4, archivo_escritura); }
+                else if(strcmp(token_registros, "r13_64") == 0) { fputc(0x49, archivo_escritura); fputc(0xC1, archivo_escritura); fputc(0xE5, archivo_escritura); }
+                else if(strcmp(token_registros, "r14_64") == 0) { fputc(0x49, archivo_escritura); fputc(0xC1, archivo_escritura); fputc(0xE6, archivo_escritura); }
+                else if(strcmp(token_registros, "r15_64") == 0) { fputc(0x49, archivo_escritura); fputc(0xC1, archivo_escritura); fputc(0xE7, archivo_escritura); }
+
+                fputc(num, archivo_escritura);
             }
             else {
-                // MODO REGISTRO A REGISTRO (Usando CL)
-                if(strcmp(token_numero, "r_contador8") == 0) {
-                    if(strcmp(token_registros, "r_acumulador64") == 0) { fputc(0x48, archivo_escritura); fputc(0xD3, archivo_escritura); fputc(0xE0, archivo_escritura); } // SHL RAX, CL
-                    else if(strcmp(token_registros, "r_base64") == 0) { fputc(0x48, archivo_escritura); fputc(0xD3, archivo_escritura); fputc(0xE3, archivo_escritura); } // SHL RBX, CL
-                    else if(strcmp(token_registros, "r_contador64") == 0) { fputc(0x48, archivo_escritura); fputc(0xD3, archivo_escritura); fputc(0xE1, archivo_escritura); } // SHL RCX, CL
-                    else if(strcmp(token_registros, "r_datos64") == 0) { fputc(0x48, archivo_escritura); fputc(0xD3, archivo_escritura); fputc(0xE2, archivo_escritura); } // SHL RDX, CL
-                    else if(strcmp(token_registros, "r_puntero64") == 0) { fputc(0x48, archivo_escritura); fputc(0xD3, archivo_escritura); fputc(0xE6, archivo_escritura); } // SHL RSI, CL
-                    else if(strcmp(token_registros, "r_destino64") == 0) { fputc(0x48, archivo_escritura); fputc(0xD3, archivo_escritura); fputc(0xE7, archivo_escritura); } // SHL RDI, CL
-                    else if(strcmp(token_registros, "r_pila64") == 0) { fputc(0x48, archivo_escritura); fputc(0xD3, archivo_escritura); fputc(0xE4, archivo_escritura); } // SHL RSP, CL
+                // MODO REGISTRO A REGISTRO (Atajo Matemático - Solo CL)
+                if (strcmp(token_numero, "r_contador8") == 0) {
+                    int id_destino = obtener_id_registro(token_registros);
+                    int tam_destino = obtener_tamano_registro(token_registros);
+                    if (id_destino != -1 && tam_destino != 0) {
+                        int rex = 0x40;
+                        if (tam_destino == 64) rex |= 0x08;
+                        if (id_destino >= 8) rex |= 0x01;
+
+                        if (tam_destino == 16) fputc(0x66, archivo_escritura);
+                        if (rex != 0x40 || tam_destino == 8) fputc(rex, archivo_escritura);
+
+                        int opcode = (tam_destino == 8) ? 0xD2 : 0xD3;
+                        fputc(opcode, archivo_escritura);
+
+                        int modrm = 0xC0 | (4 << 3) | (id_destino & 7); // /4 para SHL
+                        fputc(modrm, archivo_escritura);
+                    }
                 }
             }
         }
-                else if(strcmp(token, "y") == 0) {
+        else if(strcmp(token, "y") == 0) {
             if(isdigit(token_numero[0])) {
                 // MODO INMEDIATO
                 if(strcmp(token_registros, "r_acumulador64") == 0) { fputc(0x48, archivo_escritura); fputc(0x25, archivo_escritura); }
@@ -2367,51 +2507,89 @@ void ensamblador_archivo(FILE *archivo_lectura, FILE *archivo_escritura)
         else if(strcmp(token, "comparar") == 0) {
             
             // --- ATAJO MATEMÁTICO PARA REGISTROS NUEVOS (COMPARAR) ---
-            int es_nuevo_dest_c = (strncmp(token_registros, "r8", 2) == 0 || strncmp(token_registros, "r9", 2) == 0 || strncmp(token_registros, "r10", 3) == 0 || strncmp(token_registros, "r11", 3) == 0 || strncmp(token_registros, "r12", 3) == 0 || strncmp(token_registros, "r13", 3) == 0 || strncmp(token_registros, "r14", 3) == 0 || strncmp(token_registros, "r15", 3) == 0);
-            int es_nuevo_orig_c = 0;
             if (!isdigit(token_numero[0])) {
-                es_nuevo_orig_c = (strncmp(token_numero, "r8", 2) == 0 || strncmp(token_numero, "r9", 2) == 0 || strncmp(token_numero, "r10", 3) == 0 || strncmp(token_numero, "r11", 3) == 0 || strncmp(token_numero, "r12", 3) == 0 || strncmp(token_numero, "r13", 3) == 0 || strncmp(token_numero, "r14", 3) == 0 || strncmp(token_numero, "r15", 3) == 0);
-            }
+                int id_origen = obtener_id_registro(token_numero);
+                int id_destino = obtener_id_registro(token_registros);
+                int tam_origen = obtener_tamano_registro(token_numero);
+                int tam_destino = obtener_tamano_registro(token_registros);
 
-            if (es_nuevo_dest_c || es_nuevo_orig_c) {
-                // 1. Inmediato (comparar 5, r8_64)
-                if (isdigit(token_numero[0])) {
-                    int id_destino = obtener_id_registro(token_registros);
-                    int rex = 0x49; 
-                    int modrm = 0xF8 | (id_destino & 7); // 0xF8 es /7 para CMP
-                    
-                    fputc(rex, archivo_escritura);
-                    fputc(0x81, archivo_escritura); 
-                    fputc(modrm, archivo_escritura);
-                    
-                    int numero = atoi(token_numero);
-                    fwrite(&numero, sizeof(int), 1, archivo_escritura);
-                }
-                // 2. Registro a Registro (comparar r8_64, r9_64)
-                else {
-                    int id_origen = obtener_id_registro(token_numero);
-                    int id_destino = obtener_id_registro(token_registros);
-                    int rex = 0x48; 
-                    if (id_origen >= 8) rex |= 0x04; 
-                    if (id_destino >= 8) rex |= 0x01; 
+                if (id_origen != -1 && id_destino != -1 && tam_origen == tam_destino) {
+                    int rex = 0x40;
+                    if (tam_destino == 64) rex |= 0x08; // REX.W
+                    if (id_origen >= 8) rex |= 0x04; // REX.R
+                    if (id_destino >= 8) rex |= 0x01; // REX.B
+
                     int modrm = 0xC0 | ((id_origen & 7) << 3) | (id_destino & 7);
+                    
+                    // 0x38 para CMP de 8 bits, 0x39 para el resto
+                    int opcode = (tam_destino == 8) ? 0x38 : 0x39; 
 
-                    fputc(rex, archivo_escritura);
-                    fputc(0x39, archivo_escritura); // Opcode CMP
+                    if (tam_destino == 16) fputc(0x66, archivo_escritura); 
+                    if (rex != 0x40 || tam_destino == 8) fputc(rex, archivo_escritura); 
+                    
+                    fputc(opcode, archivo_escritura);
                     fputc(modrm, archivo_escritura);
+                    continue;
                 }
-                continue;
             }
             // --- FIN DEL ATAJO ---
             
             if(isdigit(token_numero[0])) {
                 // MODO INMEDIATO
-                if(strcmp(token_registros, "r_acumulador32") == 0) {
-                    fputc(0x3D, archivo_escritura) ;
-                }
-                else if(strcmp(token_registros, "r_base32") == 0) {
-                    fputc(0x81, archivo_escritura) ; fputc(0xFB, archivo_escritura) ;
-                }
+                // --- REGISTROS CLÁSICOS DE 8 BITS ---
+                if(strcmp(token_registros, "r_acumulador8") == 0) { fputc(0x3C, archivo_escritura); } // CMP AL, imm8
+                else if(strcmp(token_registros, "r_base8") == 0) { fputc(0x80, archivo_escritura); fputc(0xFB, archivo_escritura); }
+                else if(strcmp(token_registros, "r_contador8") == 0) { fputc(0x80, archivo_escritura); fputc(0xF9, archivo_escritura); }
+                else if(strcmp(token_registros, "r_datos8") == 0) { fputc(0x80, archivo_escritura); fputc(0xFA, archivo_escritura); }
+                else if(strcmp(token_registros, "r_pila8") == 0) { fputc(0x40, archivo_escritura); fputc(0x80, archivo_escritura); fputc(0xFC, archivo_escritura); }
+                else if(strcmp(token_registros, "r_puntero8") == 0) { fputc(0x40, archivo_escritura); fputc(0x80, archivo_escritura); fputc(0xFE, archivo_escritura); }
+                else if(strcmp(token_registros, "r_destino8") == 0) { fputc(0x40, archivo_escritura); fputc(0x80, archivo_escritura); fputc(0xFF, archivo_escritura); }
+                // --- REGISTROS ESPECIALES DE 8 BITS ---
+                else if(strcmp(token_registros, "r8_8") == 0) { fputc(0x41, archivo_escritura); fputc(0x80, archivo_escritura); fputc(0xF8, archivo_escritura); }
+                else if(strcmp(token_registros, "r9_8") == 0) { fputc(0x41, archivo_escritura); fputc(0x80, archivo_escritura); fputc(0xF9, archivo_escritura); }
+                else if(strcmp(token_registros, "r10_8") == 0) { fputc(0x41, archivo_escritura); fputc(0x80, archivo_escritura); fputc(0xFA, archivo_escritura); }
+                else if(strcmp(token_registros, "r11_8") == 0) { fputc(0x41, archivo_escritura); fputc(0x80, archivo_escritura); fputc(0xFB, archivo_escritura); }
+                else if(strcmp(token_registros, "r12_8") == 0) { fputc(0x41, archivo_escritura); fputc(0x80, archivo_escritura); fputc(0xFC, archivo_escritura); }
+                else if(strcmp(token_registros, "r13_8") == 0) { fputc(0x41, archivo_escritura); fputc(0x80, archivo_escritura); fputc(0xFD, archivo_escritura); }
+                else if(strcmp(token_registros, "r14_8") == 0) { fputc(0x41, archivo_escritura); fputc(0x80, archivo_escritura); fputc(0xFE, archivo_escritura); }
+                else if(strcmp(token_registros, "r15_8") == 0) { fputc(0x41, archivo_escritura); fputc(0x80, archivo_escritura); fputc(0xFF, archivo_escritura); }
+
+                // --- REGISTROS CLÁSICOS DE 16 BITS ---
+                else if(strcmp(token_registros, "r_acumulador16") == 0) { fputc(0x66, archivo_escritura); fputc(0x3D, archivo_escritura); }
+                else if(strcmp(token_registros, "r_base16") == 0) { fputc(0x66, archivo_escritura); fputc(0x81, archivo_escritura); fputc(0xFB, archivo_escritura); }
+                else if(strcmp(token_registros, "r_contador16") == 0) { fputc(0x66, archivo_escritura); fputc(0x81, archivo_escritura); fputc(0xF9, archivo_escritura); }
+                else if(strcmp(token_registros, "r_datos16") == 0) { fputc(0x66, archivo_escritura); fputc(0x81, archivo_escritura); fputc(0xFA, archivo_escritura); }
+                else if(strcmp(token_registros, "r_pila16") == 0) { fputc(0x66, archivo_escritura); fputc(0x81, archivo_escritura); fputc(0xFC, archivo_escritura); }
+                else if(strcmp(token_registros, "r_puntero16") == 0) { fputc(0x66, archivo_escritura); fputc(0x81, archivo_escritura); fputc(0xFE, archivo_escritura); }
+                else if(strcmp(token_registros, "r_destino16") == 0) { fputc(0x66, archivo_escritura); fputc(0x81, archivo_escritura); fputc(0xFF, archivo_escritura); }
+                // --- REGISTROS ESPECIALES DE 16 BITS ---
+                else if(strcmp(token_registros, "r8_16") == 0) { fputc(0x66, archivo_escritura); fputc(0x41, archivo_escritura); fputc(0x81, archivo_escritura); fputc(0xF8, archivo_escritura); }
+                else if(strcmp(token_registros, "r9_16") == 0) { fputc(0x66, archivo_escritura); fputc(0x41, archivo_escritura); fputc(0x81, archivo_escritura); fputc(0xF9, archivo_escritura); }
+                else if(strcmp(token_registros, "r10_16") == 0) { fputc(0x66, archivo_escritura); fputc(0x41, archivo_escritura); fputc(0x81, archivo_escritura); fputc(0xFA, archivo_escritura); }
+                else if(strcmp(token_registros, "r11_16") == 0) { fputc(0x66, archivo_escritura); fputc(0x41, archivo_escritura); fputc(0x81, archivo_escritura); fputc(0xFB, archivo_escritura); }
+                else if(strcmp(token_registros, "r12_16") == 0) { fputc(0x66, archivo_escritura); fputc(0x41, archivo_escritura); fputc(0x81, archivo_escritura); fputc(0xFC, archivo_escritura); }
+                else if(strcmp(token_registros, "r13_16") == 0) { fputc(0x66, archivo_escritura); fputc(0x41, archivo_escritura); fputc(0x81, archivo_escritura); fputc(0xFD, archivo_escritura); }
+                else if(strcmp(token_registros, "r14_16") == 0) { fputc(0x66, archivo_escritura); fputc(0x41, archivo_escritura); fputc(0x81, archivo_escritura); fputc(0xFE, archivo_escritura); }
+                else if(strcmp(token_registros, "r15_16") == 0) { fputc(0x66, archivo_escritura); fputc(0x41, archivo_escritura); fputc(0x81, archivo_escritura); fputc(0xFF, archivo_escritura); }
+
+                // --- REGISTROS CLÁSICOS DE 32 BITS ---
+                else if(strcmp(token_registros, "r_acumulador32") == 0) { fputc(0x3D, archivo_escritura); }
+                else if(strcmp(token_registros, "r_base32") == 0) { fputc(0x81, archivo_escritura); fputc(0xFB, archivo_escritura); }
+                else if(strcmp(token_registros, "r_contador32") == 0) { fputc(0x81, archivo_escritura); fputc(0xF9, archivo_escritura); }
+                else if(strcmp(token_registros, "r_datos32") == 0) { fputc(0x81, archivo_escritura); fputc(0xFA, archivo_escritura); }
+                else if(strcmp(token_registros, "r_pila32") == 0) { fputc(0x81, archivo_escritura); fputc(0xFC, archivo_escritura); }
+                else if(strcmp(token_registros, "r_puntero32") == 0) { fputc(0x81, archivo_escritura); fputc(0xFE, archivo_escritura); }
+                else if(strcmp(token_registros, "r_destino32") == 0) { fputc(0x81, archivo_escritura); fputc(0xFF, archivo_escritura); }
+                // --- REGISTROS ESPECIALES DE 32 BITS ---
+                else if(strcmp(token_registros, "r8_32") == 0) { fputc(0x41, archivo_escritura); fputc(0x81, archivo_escritura); fputc(0xF8, archivo_escritura); }
+                else if(strcmp(token_registros, "r9_32") == 0) { fputc(0x41, archivo_escritura); fputc(0x81, archivo_escritura); fputc(0xF9, archivo_escritura); }
+                else if(strcmp(token_registros, "r10_32") == 0) { fputc(0x41, archivo_escritura); fputc(0x81, archivo_escritura); fputc(0xFA, archivo_escritura); }
+                else if(strcmp(token_registros, "r11_32") == 0) { fputc(0x41, archivo_escritura); fputc(0x81, archivo_escritura); fputc(0xFB, archivo_escritura); }
+                else if(strcmp(token_registros, "r12_32") == 0) { fputc(0x41, archivo_escritura); fputc(0x81, archivo_escritura); fputc(0xFC, archivo_escritura); }
+                else if(strcmp(token_registros, "r13_32") == 0) { fputc(0x41, archivo_escritura); fputc(0x81, archivo_escritura); fputc(0xFD, archivo_escritura); }
+                else if(strcmp(token_registros, "r14_32") == 0) { fputc(0x41, archivo_escritura); fputc(0x81, archivo_escritura); fputc(0xFE, archivo_escritura); }
+                else if(strcmp(token_registros, "r15_32") == 0) { fputc(0x41, archivo_escritura); fputc(0x81, archivo_escritura); fputc(0xFF, archivo_escritura); }
+
                 else if(strcmp(token_registros, "r_acumulador64") == 0) {
                     fputc(0x48, archivo_escritura) ; fputc(0x3D, archivo_escritura) ;
                     es_64 = 1 ;
@@ -2460,8 +2638,16 @@ void ensamblador_archivo(FILE *archivo_lectura, FILE *archivo_escritura)
                 else if(strcmp(token_registros, "r15_64") == 0) { 
                     fputc(0x49, archivo_escritura); fputc(0x81, archivo_escritura); fputc(0xFF, archivo_escritura); 
                 }
-                int numero = atoi(token_numero) ;
-                fwrite(&numero, sizeof(int), 1, archivo_escritura) ;
+                if (strstr(token_registros, "16") != NULL) {
+                    short numero = (short)atoi(token_numero);
+                    fwrite(&numero, sizeof(short), 1, archivo_escritura); // 2 bytes
+                } else if (strstr(token_registros, "8") != NULL) {
+                    char numero = (char)atoi(token_numero);
+                    fputc(numero, archivo_escritura); // 1 byte
+                } else {
+                    int numero = atoi(token_numero);
+                    fwrite(&numero, sizeof(int), 1, archivo_escritura); // 4 bytes (32 y 64 bits)
+                }
             }
             else {
                 // MODO REGISTRO A REGISTRO
@@ -2821,66 +3007,252 @@ void ensamblador_archivo(FILE *archivo_lectura, FILE *archivo_escritura)
         else if(strcmp(token, "dividir") == 0) {
             // Sintaxis: dividir <registro_divisor>
             // El dividendo siempre debe estar en r_acumulador64 (RAX)
+            // (Ojo: para 8 bits el dividendo es AX, y para 16 bits es DX:AX. 
+            // El XOR RDX, RDX limpia DX y EDX, así que funciona bien).
             
+            // --- 64 BITS ---
             if(strcmp(token_numero, "r_acumulador64") == 0) {
                 fputc(0x48, archivo_escritura); fputc(0x31, archivo_escritura); fputc(0xD2, archivo_escritura); // XOR RDX, RDX
                 fputc(0x48, archivo_escritura); fputc(0xF7, archivo_escritura); fputc(0xF0, archivo_escritura); // DIV RAX
             }
             else if(strcmp(token_numero, "r_base64") == 0) {
-                fputc(0x48, archivo_escritura); fputc(0x31, archivo_escritura); fputc(0xD2, archivo_escritura); // XOR RDX, RDX
+                fputc(0x48, archivo_escritura); fputc(0x31, archivo_escritura); fputc(0xD2, archivo_escritura);
                 fputc(0x48, archivo_escritura); fputc(0xF7, archivo_escritura); fputc(0xF3, archivo_escritura); // DIV RBX
             }
             else if(strcmp(token_numero, "r_contador64") == 0) {
-                fputc(0x48, archivo_escritura); fputc(0x31, archivo_escritura); fputc(0xD2, archivo_escritura); // XOR RDX, RDX
+                fputc(0x48, archivo_escritura); fputc(0x31, archivo_escritura); fputc(0xD2, archivo_escritura);
                 fputc(0x48, archivo_escritura); fputc(0xF7, archivo_escritura); fputc(0xF1, archivo_escritura); // DIV RCX
             }
             else if(strcmp(token_numero, "r_datos64") == 0) {
-                fputc(0x48, archivo_escritura); fputc(0x31, archivo_escritura); fputc(0xD2, archivo_escritura); // XOR RDX, RDX
+                fputc(0x48, archivo_escritura); fputc(0x31, archivo_escritura); fputc(0xD2, archivo_escritura);
                 fputc(0x48, archivo_escritura); fputc(0xF7, archivo_escritura); fputc(0xF2, archivo_escritura); // DIV RDX
             }
             else if(strcmp(token_numero, "r_puntero64") == 0) {
-                fputc(0x48, archivo_escritura); fputc(0x31, archivo_escritura); fputc(0xD2, archivo_escritura); // XOR RDX, RDX
+                fputc(0x48, archivo_escritura); fputc(0x31, archivo_escritura); fputc(0xD2, archivo_escritura);
                 fputc(0x48, archivo_escritura); fputc(0xF7, archivo_escritura); fputc(0xF6, archivo_escritura); // DIV RSI
             }
             else if(strcmp(token_numero, "r_destino64") == 0) {
-                fputc(0x48, archivo_escritura); fputc(0x31, archivo_escritura); fputc(0xD2, archivo_escritura); // XOR RDX, RDX
+                fputc(0x48, archivo_escritura); fputc(0x31, archivo_escritura); fputc(0xD2, archivo_escritura);
                 fputc(0x48, archivo_escritura); fputc(0xF7, archivo_escritura); fputc(0xF7, archivo_escritura); // DIV RDI
             }
             else if(strcmp(token_numero, "r_pila64") == 0) {
-                fputc(0x48, archivo_escritura); fputc(0x31, archivo_escritura); fputc(0xD2, archivo_escritura); // XOR RDX, RDX
+                fputc(0x48, archivo_escritura); fputc(0x31, archivo_escritura); fputc(0xD2, archivo_escritura);
                 fputc(0x48, archivo_escritura); fputc(0xF7, archivo_escritura); fputc(0xF4, archivo_escritura); // DIV RSP
             }
             else if(strcmp(token_numero, "r8_64") == 0) {
-                fputc(0x48, archivo_escritura); fputc(0x31, archivo_escritura); fputc(0xD2, archivo_escritura); // XOR RDX, RDX
+                fputc(0x48, archivo_escritura); fputc(0x31, archivo_escritura); fputc(0xD2, archivo_escritura);
                 fputc(0x49, archivo_escritura); fputc(0xF7, archivo_escritura); fputc(0xF0, archivo_escritura); // DIV R8
             }
             else if(strcmp(token_numero, "r9_64") == 0) {
-                fputc(0x48, archivo_escritura); fputc(0x31, archivo_escritura); fputc(0xD2, archivo_escritura); // XOR RDX, RDX
+                fputc(0x48, archivo_escritura); fputc(0x31, archivo_escritura); fputc(0xD2, archivo_escritura);
                 fputc(0x49, archivo_escritura); fputc(0xF7, archivo_escritura); fputc(0xF1, archivo_escritura); // DIV R9
             }
             else if(strcmp(token_numero, "r10_64") == 0) {
-                fputc(0x48, archivo_escritura); fputc(0x31, archivo_escritura); fputc(0xD2, archivo_escritura); // XOR RDX, RDX
+                fputc(0x48, archivo_escritura); fputc(0x31, archivo_escritura); fputc(0xD2, archivo_escritura);
                 fputc(0x49, archivo_escritura); fputc(0xF7, archivo_escritura); fputc(0xF2, archivo_escritura); // DIV R10
             }
             else if(strcmp(token_numero, "r11_64") == 0) {
-                fputc(0x48, archivo_escritura); fputc(0x31, archivo_escritura); fputc(0xD2, archivo_escritura); // XOR RDX, RDX
+                fputc(0x48, archivo_escritura); fputc(0x31, archivo_escritura); fputc(0xD2, archivo_escritura);
                 fputc(0x49, archivo_escritura); fputc(0xF7, archivo_escritura); fputc(0xF3, archivo_escritura); // DIV R11
             }
             else if(strcmp(token_numero, "r12_64") == 0) {
-                fputc(0x48, archivo_escritura); fputc(0x31, archivo_escritura); fputc(0xD2, archivo_escritura); // XOR RDX, RDX
+                fputc(0x48, archivo_escritura); fputc(0x31, archivo_escritura); fputc(0xD2, archivo_escritura);
                 fputc(0x49, archivo_escritura); fputc(0xF7, archivo_escritura); fputc(0xF4, archivo_escritura); // DIV R12
             }
             else if(strcmp(token_numero, "r13_64") == 0) {
-                fputc(0x48, archivo_escritura); fputc(0x31, archivo_escritura); fputc(0xD2, archivo_escritura); // XOR RDX, RDX
+                fputc(0x48, archivo_escritura); fputc(0x31, archivo_escritura); fputc(0xD2, archivo_escritura);
                 fputc(0x49, archivo_escritura); fputc(0xF7, archivo_escritura); fputc(0xF5, archivo_escritura); // DIV R13
             }
             else if(strcmp(token_numero, "r14_64") == 0) {
-                fputc(0x48, archivo_escritura); fputc(0x31, archivo_escritura); fputc(0xD2, archivo_escritura); // XOR RDX, RDX
+                fputc(0x48, archivo_escritura); fputc(0x31, archivo_escritura); fputc(0xD2, archivo_escritura);
                 fputc(0x49, archivo_escritura); fputc(0xF7, archivo_escritura); fputc(0xF6, archivo_escritura); // DIV R14
             }
             else if(strcmp(token_numero, "r15_64") == 0) {
-                fputc(0x48, archivo_escritura); fputc(0x31, archivo_escritura); fputc(0xD2, archivo_escritura); // XOR RDX, RDX
+                fputc(0x48, archivo_escritura); fputc(0x31, archivo_escritura); fputc(0xD2, archivo_escritura);
                 fputc(0x49, archivo_escritura); fputc(0xF7, archivo_escritura); fputc(0xF7, archivo_escritura); // DIV R15
+            }
+            // --- 32 BITS ---
+            else if(strcmp(token_numero, "r_acumulador32") == 0) {
+                fputc(0x48, archivo_escritura); fputc(0x31, archivo_escritura); fputc(0xD2, archivo_escritura);
+                fputc(0xF7, archivo_escritura); fputc(0xF0, archivo_escritura); // DIV EAX
+            }
+            else if(strcmp(token_numero, "r_base32") == 0) {
+                fputc(0x48, archivo_escritura); fputc(0x31, archivo_escritura); fputc(0xD2, archivo_escritura);
+                fputc(0xF7, archivo_escritura); fputc(0xF3, archivo_escritura); // DIV EBX
+            }
+            else if(strcmp(token_numero, "r_contador32") == 0) {
+                fputc(0x48, archivo_escritura); fputc(0x31, archivo_escritura); fputc(0xD2, archivo_escritura);
+                fputc(0xF7, archivo_escritura); fputc(0xF1, archivo_escritura); // DIV ECX
+            }
+            else if(strcmp(token_numero, "r_datos32") == 0) {
+                fputc(0x48, archivo_escritura); fputc(0x31, archivo_escritura); fputc(0xD2, archivo_escritura);
+                fputc(0xF7, archivo_escritura); fputc(0xF2, archivo_escritura); // DIV EDX
+            }
+            else if(strcmp(token_numero, "r_pila32") == 0) {
+                fputc(0x48, archivo_escritura); fputc(0x31, archivo_escritura); fputc(0xD2, archivo_escritura);
+                fputc(0xF7, archivo_escritura); fputc(0xF4, archivo_escritura); // DIV ESP
+            }
+            else if(strcmp(token_numero, "r_puntero32") == 0) {
+                fputc(0x48, archivo_escritura); fputc(0x31, archivo_escritura); fputc(0xD2, archivo_escritura);
+                fputc(0xF7, archivo_escritura); fputc(0xF6, archivo_escritura); // DIV ESI
+            }
+            else if(strcmp(token_numero, "r_destino32") == 0) {
+                fputc(0x48, archivo_escritura); fputc(0x31, archivo_escritura); fputc(0xD2, archivo_escritura);
+                fputc(0xF7, archivo_escritura); fputc(0xF7, archivo_escritura); // DIV EDI
+            }
+            else if(strcmp(token_numero, "r8_32") == 0) {
+                fputc(0x48, archivo_escritura); fputc(0x31, archivo_escritura); fputc(0xD2, archivo_escritura);
+                fputc(0x41, archivo_escritura); fputc(0xF7, archivo_escritura); fputc(0xF0, archivo_escritura); // DIV R8D
+            }
+            else if(strcmp(token_numero, "r9_32") == 0) {
+                fputc(0x48, archivo_escritura); fputc(0x31, archivo_escritura); fputc(0xD2, archivo_escritura);
+                fputc(0x41, archivo_escritura); fputc(0xF7, archivo_escritura); fputc(0xF1, archivo_escritura); // DIV R9D
+            }
+            else if(strcmp(token_numero, "r10_32") == 0) {
+                fputc(0x48, archivo_escritura); fputc(0x31, archivo_escritura); fputc(0xD2, archivo_escritura);
+                fputc(0x41, archivo_escritura); fputc(0xF7, archivo_escritura); fputc(0xF2, archivo_escritura); // DIV R10D
+            }
+            else if(strcmp(token_numero, "r11_32") == 0) {
+                fputc(0x48, archivo_escritura); fputc(0x31, archivo_escritura); fputc(0xD2, archivo_escritura);
+                fputc(0x41, archivo_escritura); fputc(0xF7, archivo_escritura); fputc(0xF3, archivo_escritura); // DIV R11D
+            }
+            else if(strcmp(token_numero, "r12_32") == 0) {
+                fputc(0x48, archivo_escritura); fputc(0x31, archivo_escritura); fputc(0xD2, archivo_escritura);
+                fputc(0x41, archivo_escritura); fputc(0xF7, archivo_escritura); fputc(0xF4, archivo_escritura); // DIV R12D
+            }
+            else if(strcmp(token_numero, "r13_32") == 0) {
+                fputc(0x48, archivo_escritura); fputc(0x31, archivo_escritura); fputc(0xD2, archivo_escritura);
+                fputc(0x41, archivo_escritura); fputc(0xF7, archivo_escritura); fputc(0xF5, archivo_escritura); // DIV R13D
+            }
+            else if(strcmp(token_numero, "r14_32") == 0) {
+                fputc(0x48, archivo_escritura); fputc(0x31, archivo_escritura); fputc(0xD2, archivo_escritura);
+                fputc(0x41, archivo_escritura); fputc(0xF7, archivo_escritura); fputc(0xF6, archivo_escritura); // DIV R14D
+            }
+            else if(strcmp(token_numero, "r15_32") == 0) {
+                fputc(0x48, archivo_escritura); fputc(0x31, archivo_escritura); fputc(0xD2, archivo_escritura);
+                fputc(0x41, archivo_escritura); fputc(0xF7, archivo_escritura); fputc(0xF7, archivo_escritura); // DIV R15D
+            }
+            // --- 16 BITS ---
+            else if(strcmp(token_numero, "r_acumulador16") == 0) {
+                fputc(0x48, archivo_escritura); fputc(0x31, archivo_escritura); fputc(0xD2, archivo_escritura);
+                fputc(0x66, archivo_escritura); fputc(0xF7, archivo_escritura); fputc(0xF0, archivo_escritura); // DIV AX
+            }
+            else if(strcmp(token_numero, "r_base16") == 0) {
+                fputc(0x48, archivo_escritura); fputc(0x31, archivo_escritura); fputc(0xD2, archivo_escritura);
+                fputc(0x66, archivo_escritura); fputc(0xF7, archivo_escritura); fputc(0xF3, archivo_escritura); // DIV BX
+            }
+            else if(strcmp(token_numero, "r_contador16") == 0) {
+                fputc(0x48, archivo_escritura); fputc(0x31, archivo_escritura); fputc(0xD2, archivo_escritura);
+                fputc(0x66, archivo_escritura); fputc(0xF7, archivo_escritura); fputc(0xF1, archivo_escritura); // DIV CX
+            }
+            else if(strcmp(token_numero, "r_datos16") == 0) {
+                fputc(0x48, archivo_escritura); fputc(0x31, archivo_escritura); fputc(0xD2, archivo_escritura);
+                fputc(0x66, archivo_escritura); fputc(0xF7, archivo_escritura); fputc(0xF2, archivo_escritura); // DIV DX
+            }
+            else if(strcmp(token_numero, "r_pila16") == 0) {
+                fputc(0x48, archivo_escritura); fputc(0x31, archivo_escritura); fputc(0xD2, archivo_escritura);
+                fputc(0x66, archivo_escritura); fputc(0xF7, archivo_escritura); fputc(0xF4, archivo_escritura); // DIV SP
+            }
+            else if(strcmp(token_numero, "r_puntero16") == 0) {
+                fputc(0x48, archivo_escritura); fputc(0x31, archivo_escritura); fputc(0xD2, archivo_escritura);
+                fputc(0x66, archivo_escritura); fputc(0xF7, archivo_escritura); fputc(0xF6, archivo_escritura); // DIV SI
+            }
+            else if(strcmp(token_numero, "r_destino16") == 0) {
+                fputc(0x48, archivo_escritura); fputc(0x31, archivo_escritura); fputc(0xD2, archivo_escritura);
+                fputc(0x66, archivo_escritura); fputc(0xF7, archivo_escritura); fputc(0xF7, archivo_escritura); // DIV DI
+            }
+            else if(strcmp(token_numero, "r8_16") == 0) {
+                fputc(0x48, archivo_escritura); fputc(0x31, archivo_escritura); fputc(0xD2, archivo_escritura);
+                fputc(0x66, archivo_escritura); fputc(0x41, archivo_escritura); fputc(0xF7, archivo_escritura); fputc(0xF0, archivo_escritura); // DIV R8W
+            }
+            else if(strcmp(token_numero, "r9_16") == 0) {
+                fputc(0x48, archivo_escritura); fputc(0x31, archivo_escritura); fputc(0xD2, archivo_escritura);
+                fputc(0x66, archivo_escritura); fputc(0x41, archivo_escritura); fputc(0xF7, archivo_escritura); fputc(0xF1, archivo_escritura); // DIV R9W
+            }
+            else if(strcmp(token_numero, "r10_16") == 0) {
+                fputc(0x48, archivo_escritura); fputc(0x31, archivo_escritura); fputc(0xD2, archivo_escritura);
+                fputc(0x66, archivo_escritura); fputc(0x41, archivo_escritura); fputc(0xF7, archivo_escritura); fputc(0xF2, archivo_escritura); // DIV R10W
+            }
+            else if(strcmp(token_numero, "r11_16") == 0) {
+                fputc(0x48, archivo_escritura); fputc(0x31, archivo_escritura); fputc(0xD2, archivo_escritura);
+                fputc(0x66, archivo_escritura); fputc(0x41, archivo_escritura); fputc(0xF7, archivo_escritura); fputc(0xF3, archivo_escritura); // DIV R11W
+            }
+            else if(strcmp(token_numero, "r12_16") == 0) {
+                fputc(0x48, archivo_escritura); fputc(0x31, archivo_escritura); fputc(0xD2, archivo_escritura);
+                fputc(0x66, archivo_escritura); fputc(0x41, archivo_escritura); fputc(0xF7, archivo_escritura); fputc(0xF4, archivo_escritura); // DIV R12W
+            }
+            else if(strcmp(token_numero, "r13_16") == 0) {
+                fputc(0x48, archivo_escritura); fputc(0x31, archivo_escritura); fputc(0xD2, archivo_escritura);
+                fputc(0x66, archivo_escritura); fputc(0x41, archivo_escritura); fputc(0xF7, archivo_escritura); fputc(0xF5, archivo_escritura); // DIV R13W
+            }
+            else if(strcmp(token_numero, "r14_16") == 0) {
+                fputc(0x48, archivo_escritura); fputc(0x31, archivo_escritura); fputc(0xD2, archivo_escritura);
+                fputc(0x66, archivo_escritura); fputc(0x41, archivo_escritura); fputc(0xF7, archivo_escritura); fputc(0xF6, archivo_escritura); // DIV R14W
+            }
+            else if(strcmp(token_numero, "r15_16") == 0) {
+                fputc(0x48, archivo_escritura); fputc(0x31, archivo_escritura); fputc(0xD2, archivo_escritura);
+                fputc(0x66, archivo_escritura); fputc(0x41, archivo_escritura); fputc(0xF7, archivo_escritura); fputc(0xF7, archivo_escritura); // DIV R15W
+            }
+            // --- 8 BITS ---
+            else if(strcmp(token_numero, "r_acumulador8") == 0) {
+                fputc(0x30, archivo_escritura); fputc(0xE4, archivo_escritura); // XOR AH, AH
+                fputc(0xF6, archivo_escritura); fputc(0xF0, archivo_escritura); // DIV AL
+            }
+            else if(strcmp(token_numero, "r_base8") == 0) {
+                fputc(0x30, archivo_escritura); fputc(0xE4, archivo_escritura); // XOR AH, AH
+                fputc(0xF6, archivo_escritura); fputc(0xF3, archivo_escritura); // DIV BL
+            }
+            else if(strcmp(token_numero, "r_contador8") == 0) {
+                fputc(0x30, archivo_escritura); fputc(0xE4, archivo_escritura); // XOR AH, AH
+                fputc(0xF6, archivo_escritura); fputc(0xF1, archivo_escritura); // DIV CL
+            }
+            else if(strcmp(token_numero, "r_datos8") == 0) {
+                fputc(0x30, archivo_escritura); fputc(0xE4, archivo_escritura); // XOR AH, AH
+                fputc(0xF6, archivo_escritura); fputc(0xF2, archivo_escritura); // DIV DL
+            }
+            else if(strcmp(token_numero, "r_pila8") == 0) {
+                fputc(0x30, archivo_escritura); fputc(0xE4, archivo_escritura); // XOR AH, AH
+                fputc(0x40, archivo_escritura); fputc(0xF6, archivo_escritura); fputc(0xF4, archivo_escritura); // DIV SPL
+            }
+            else if(strcmp(token_numero, "r_puntero8") == 0) {
+                fputc(0x30, archivo_escritura); fputc(0xE4, archivo_escritura); // XOR AH, AH
+                fputc(0x40, archivo_escritura); fputc(0xF6, archivo_escritura); fputc(0xF6, archivo_escritura); // DIV SIL
+            }
+            else if(strcmp(token_numero, "r_destino8") == 0) {
+                fputc(0x30, archivo_escritura); fputc(0xE4, archivo_escritura); // XOR AH, AH
+                fputc(0x40, archivo_escritura); fputc(0xF6, archivo_escritura); fputc(0xF7, archivo_escritura); // DIV DIL
+            }
+            else if(strcmp(token_numero, "r8_8") == 0) {
+                fputc(0x30, archivo_escritura); fputc(0xE4, archivo_escritura); // XOR AH, AH
+                fputc(0x41, archivo_escritura); fputc(0xF6, archivo_escritura); fputc(0xF0, archivo_escritura); // DIV R8B
+            }
+            else if(strcmp(token_numero, "r9_8") == 0) {
+                fputc(0x30, archivo_escritura); fputc(0xE4, archivo_escritura); // XOR AH, AH
+                fputc(0x41, archivo_escritura); fputc(0xF6, archivo_escritura); fputc(0xF1, archivo_escritura); // DIV R9B
+            }
+            else if(strcmp(token_numero, "r10_8") == 0) {
+                fputc(0x30, archivo_escritura); fputc(0xE4, archivo_escritura); // XOR AH, AH
+                fputc(0x41, archivo_escritura); fputc(0xF6, archivo_escritura); fputc(0xF2, archivo_escritura); // DIV R10B
+            }
+            else if(strcmp(token_numero, "r11_8") == 0) {
+                fputc(0x30, archivo_escritura); fputc(0xE4, archivo_escritura); // XOR AH, AH
+                fputc(0x41, archivo_escritura); fputc(0xF6, archivo_escritura); fputc(0xF3, archivo_escritura); // DIV R11B
+            }
+            else if(strcmp(token_numero, "r12_8") == 0) {
+                fputc(0x30, archivo_escritura); fputc(0xE4, archivo_escritura); // XOR AH, AH
+                fputc(0x41, archivo_escritura); fputc(0xF6, archivo_escritura); fputc(0xF4, archivo_escritura); // DIV R12B
+            }
+            else if(strcmp(token_numero, "r13_8") == 0) {
+                fputc(0x30, archivo_escritura); fputc(0xE4, archivo_escritura); // XOR AH, AH
+                fputc(0x41, archivo_escritura); fputc(0xF6, archivo_escritura); fputc(0xF5, archivo_escritura); // DIV R13B
+            }
+            else if(strcmp(token_numero, "r14_8") == 0) {
+                fputc(0x30, archivo_escritura); fputc(0xE4, archivo_escritura); // XOR AH, AH
+                fputc(0x41, archivo_escritura); fputc(0xF6, archivo_escritura); fputc(0xF6, archivo_escritura); // DIV R14B
+            }
+            else if(strcmp(token_numero, "r15_8") == 0) {
+                fputc(0x30, archivo_escritura); fputc(0xE4, archivo_escritura); // XOR AH, AH
+                fputc(0x41, archivo_escritura); fputc(0xF6, archivo_escritura); fputc(0xF7, archivo_escritura); // DIV R15B
             }
         }
     } // <--- CIERRA EL WHILE
