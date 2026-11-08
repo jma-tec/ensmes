@@ -24,6 +24,7 @@ ENSMES es un ensamblador modular escrito en C que genera ejecutables en un forma
 buffer:
 reservar_byte 16
 
+```
 .codigo
 inicio:
     cargar_direccion buffer, r_puntero64
@@ -48,6 +49,8 @@ inicio:
     interrumpir
 
     terminar
+```
+
 Roadmap: El Ecosistema JMA
 ☑ Ensamblador base y cargador en C.
 ☑ Soporte de control de flujo, memoria y offsets.
