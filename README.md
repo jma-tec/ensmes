@@ -1,7 +1,7 @@
 # ENSMES 🚀
 **El primer ensamblador x86_64 con sintaxis en español, diseñado para la Soberanía Tecnológica.**
 
-ENSMES es un ensamblador modular escrito en C que genera ejecutables en un formato propio (`.jma`). Nace con el objetivo de ser la base de un ecosistema completo de programación (Corporación JMA), abarcando desde un lenguaje de alto nivel hasta un Kernel y Sistema Operativo propio de propósito general (Agentes SO).
+ENSMES es un ensamblador modular escrito en C que genera ejecutables en un formato propio (`.jma`). Nace con el objetivo de ser la base de un ecosistema completo de programación (Corporación JMA), abarcando desde un lenguaje de alto nivel hasta un Kernel y Sistema Operativo propio de propósito general.
 
 ## Características actuales
 - **Sintaxis legible en español** (`copiar`, `sumar`, `saltar_si_igual`, `desplazar_izquierda`).
@@ -56,7 +56,7 @@ ENSMES es un ensamblador modular escrito en C que genera ejecutables en un forma
 - [x] **Soporte completo de pila (Push/Pop).**
 - [x] **Acceso a memoria indirecto complejo (SIB).**
 - [ ] Lenguaje de alto nivel (en desarrollo).
-- [ ] Kernel y Sistema Operativo propio de propósito general (Agentes SO).
+- [ ] Kernel y Sistema Operativo propio de propósito general.
 
 ## Compilación y Uso
 
