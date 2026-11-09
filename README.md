@@ -25,30 +25,30 @@ reservar_byte 16
 
 .codigo
 inicio:
-    # Cargamos la dirección del buffer en ambos punteros
+    
     cargar_direccion buffer, r_puntero64
     cargar_direccion buffer, r12_64
 
-    # Escribir 5 en [r12_64] (Fuerza el uso de byte SIB)
+    
     copiar 5, r_acumulador8
     guardar_puntero r_acumulador8, [r12_64]
 
-    # Leer de [r_puntero64] y sumar 1
+    
     cargar [r_puntero64], r15_64
     sumar 1, r15_64
 
-    # Imprimir el resultado (6) por pantalla
+    
     copiar r15_64, r_acumulador64
     sumar 48, r_acumulador64
     guardar_byte_puntero r_acumulador64, [r_puntero64]
     
-    # Añadir el salto de línea (\n = 10) en el siguiente byte del buffer
+    
     cargar_direccion buffer, r_puntero64
     sumar 1, r_puntero64
     copiar 10, r_acumulador8
     guardar_byte_puntero r_acumulador8, [r_puntero64]
 
-    # Imprimir 2 bytes (el número '6' y el salto de línea)
+    
     cargar_direccion buffer, r_puntero64
     copiar 2, r_datos64
     copiar 1, r_acumulador64
