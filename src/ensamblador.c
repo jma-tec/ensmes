@@ -523,6 +523,7 @@ void ensamblador_archivo(FILE *archivo_lectura, FILE *archivo_escritura)
                 }
             }
             
+            // Registros clásicos
             if(strcmp(token_registros, "r_acumulador64") == 0) {
                 fputc(0x48, archivo_escritura); fputc(0x8D, archivo_escritura); fputc(0x05, archivo_escritura);
             } else if(strcmp(token_registros, "r_base64") == 0) {
@@ -531,6 +532,24 @@ void ensamblador_archivo(FILE *archivo_lectura, FILE *archivo_escritura)
                 fputc(0x48, archivo_escritura); fputc(0x8D, archivo_escritura); fputc(0x35, archivo_escritura);
             } else if(strcmp(token_registros, "r_destino64") == 0) {
                 fputc(0x48, archivo_escritura); fputc(0x8D, archivo_escritura); fputc(0x3D, archivo_escritura);
+            
+            // Registros Especiales
+            } else if(strcmp(token_registros, "r8_64") == 0) {
+                fputc(0x4C, archivo_escritura); fputc(0x8D, archivo_escritura); fputc(0x05, archivo_escritura);
+            } else if(strcmp(token_registros, "r9_64") == 0) {
+                fputc(0x4C, archivo_escritura); fputc(0x8D, archivo_escritura); fputc(0x0D, archivo_escritura);
+            } else if(strcmp(token_registros, "r10_64") == 0) {
+                fputc(0x4C, archivo_escritura); fputc(0x8D, archivo_escritura); fputc(0x15, archivo_escritura);
+            } else if(strcmp(token_registros, "r11_64") == 0) {
+                fputc(0x4C, archivo_escritura); fputc(0x8D, archivo_escritura); fputc(0x1D, archivo_escritura);
+            } else if(strcmp(token_registros, "r12_64") == 0) {
+                fputc(0x4C, archivo_escritura); fputc(0x8D, archivo_escritura); fputc(0x25, archivo_escritura);
+            } else if(strcmp(token_registros, "r13_64") == 0) {
+                fputc(0x4C, archivo_escritura); fputc(0x8D, archivo_escritura); fputc(0x2D, archivo_escritura);
+            } else if(strcmp(token_registros, "r14_64") == 0) {
+                fputc(0x4C, archivo_escritura); fputc(0x8D, archivo_escritura); fputc(0x35, archivo_escritura); // <-- AQUÍ
+            } else if(strcmp(token_registros, "r15_64") == 0) {
+                fputc(0x4C, archivo_escritura); fputc(0x8D, archivo_escritura); fputc(0x3D, archivo_escritura);
             } else {
                 continue; 
             }
