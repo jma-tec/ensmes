@@ -19,6 +19,8 @@ ENSMES es un ensamblador modular escrito en C que genera ejecutables en un forma
 
 ## Ejemplo de código (Memoria Indirecta y Registros Especiales)
 
+
+
 .datos
 buffer:
 reservar_byte 16
