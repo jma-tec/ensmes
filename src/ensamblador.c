@@ -532,9 +532,14 @@ void ensamblador_archivo(FILE *archivo_lectura, FILE *archivo_escritura)
                 fputc(0x48, archivo_escritura); fputc(0x8D, archivo_escritura); fputc(0x35, archivo_escritura);
             } else if(strcmp(token_registros, "r_destino64") == 0) {
                 fputc(0x48, archivo_escritura); fputc(0x8D, archivo_escritura); fputc(0x3D, archivo_escritura);
-            
+            }
+            else if(strcmp(token_registros, "r_contador64") == 0) {
+                fputc(0x48, archivo_escritura); fputc(0x8D, archivo_escritura); fputc(0x0D, archivo_escritura);
+            } else if(strcmp(token_registros, "r_datos64") == 0) {
+                fputc(0x48, archivo_escritura); fputc(0x8D, archivo_escritura); fputc(0x15, archivo_escritura);
+            }
             // Registros Especiales
-            } else if(strcmp(token_registros, "r8_64") == 0) {
+            else if(strcmp(token_registros, "r8_64") == 0) {
                 fputc(0x4C, archivo_escritura); fputc(0x8D, archivo_escritura); fputc(0x05, archivo_escritura);
             } else if(strcmp(token_registros, "r9_64") == 0) {
                 fputc(0x4C, archivo_escritura); fputc(0x8D, archivo_escritura); fputc(0x0D, archivo_escritura);
