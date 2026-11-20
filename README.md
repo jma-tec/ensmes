@@ -78,11 +78,11 @@ gcc src/main.c src/ensamblador.c -o ens
 
 ## Contribuciones
 
-Buscamos colaboradores que compartan la visión de tecnología nativa en español y bajo nivel:
+Busco colaboradores que compartan la visión de tecnología nativa en español y bajo nivel:
 - Reportar bugs y casos límite
 - Sugerir nuevas instrucciones o mejoras arquitectónicas
 - Mejorar documentación y ejemplos
 - Ayudar con el lenguaje de alto nivel Neurax
 
 ---
-*Creado por Joseph | Corporación JMA | Soberanía Tecnológica en Español* 🇪🇸🧠
+*Creado por Joseph | Soberanía Tecnológica en Español* 🇪🇸🧠
