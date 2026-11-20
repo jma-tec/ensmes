@@ -10,6 +10,34 @@
 #define MAX_SALTOS_PENDIENTES 100
 #define TAMANO_CABECERA 128 // 4+4+8+8*8+56 = 128 bytes
 
+// Alinea la posición del archivo a múltiplo de tamaño_pagina rellenando con ceros
+void alinear_seccion(FILE *archivo_escritura, long tamano_pagina) {
+    long posicion_actual = ftell(archivo_escritura);
+    long resto = posicion_actual % tamano_pagina;
+    if (resto != 0) {
+        long padding = tamano_pagina - resto;
+        for (long i = 0; i < padding; i++) {
+            fputc(0x00, archivo_escritura);
+        }
+    }
+}
+
+// CABECERA JMA v2 (128 bytes exactos)
+typedef struct {
+    char firma[4];              // 4 bytes: "JMA\0"
+    int version;                // 4 bytes: 2
+    long long entry_point;      // 8 bytes: Punto de entrada
+    long offset_codigo;         // 8 bytes
+    long tamano_codigo;         // 8 bytes
+    long offset_datos;          // 8 bytes
+    long tamano_datos;          // 8 bytes
+    long offset_constantes;     // 8 bytes
+    long tamano_constantes;     // 8 bytes
+    long tamano_reservado;      // 8 bytes: BSS
+    long tamano_heap_inicial;   // 8 bytes: Tamaño inicial del heap dinámico
+    char relleno[48];           // 48 bytes: Para llegar a 128 bytes totales
+} CabeceraJMA;
+
 
 int obtener_tamano_registro(const char *nombre) {
     if (strstr(nombre, "64") != NULL) return 64;
@@ -193,7 +221,9 @@ void ensamblador_archivo(FILE *archivo_lectura, FILE *archivo_escritura)
         }
 
         // 3. GESTIÓN DE SECCIONES Y DATOS
+        // 3. GESTIÓN DE SECCIONES Y DATOS
         if (strcmp(token, ".datos") == 0) {
+            alinear_seccion(archivo_escritura, 4096);  // <-- AÑADIR ESTA LÍNEA
             en_seccion_datos = 1;
             if(offset_datos == -1){
                 offset_datos = ftell(archivo_escritura);
@@ -201,18 +231,21 @@ void ensamblador_archivo(FILE *archivo_lectura, FILE *archivo_escritura)
             continue;
         }
         else if (strcmp(token, ".codigo") == 0) {
+            alinear_seccion(archivo_escritura, 4096);  // <-- AÑADIR ESTA LÍNEA
             en_seccion_datos = 0;
-            if(offset_codigo == -1){
-                offset_codigo = ftell(archivo_escritura);
+            if(offset_codigo == -1) {
+            offset_codigo = ftell(archivo_escritura);
             }
             continue;
         }
         else if (strcmp(token, ".constantes") == 0) {
-            en_seccion_datos = 1; // Tratamos las constantes como datos inicializados
+            alinear_seccion(archivo_escritura, 4096);  // <-- AÑADIR ESTA LÍNEA
+            en_seccion_datos = 1;
             if(offset_constantes == -1){ offset_constantes = ftell(archivo_escritura); }
             continue;
         }
         else if (strcmp(token, ".reservado") == 0) {
+            alinear_seccion(archivo_escritura, 4096);  // <-- AÑADIR ESTA LÍNEA
             en_seccion_datos = 1;
             continue;
         }
@@ -3246,68 +3279,60 @@ void ensamblador_archivo(FILE *archivo_lectura, FILE *archivo_escritura)
     long tamano_datos = 0;
     long tamano_constantes = 0;
 
-    // Calcular tamaños asumiendo el orden: .constantes -> .datos -> .codigo
-    if (offset_constantes != -1) {
-        tamano_constantes = (offset_datos != -1) ? (offset_datos - offset_constantes) : 
-                            ((offset_codigo != -1) ? (offset_codigo - offset_constantes) : posicion_final - offset_constantes);
-    }
+    // ORDEN REAL EN TU ARCHIVO: .datos -> .constantes -> .codigo
+    
+    // 1. Tamaño de .datos (desde su inicio hasta el inicio de .constantes o .codigo)
     if (offset_datos != -1) {
-        tamano_datos = (offset_codigo != -1) ? (offset_codigo - offset_datos) : posicion_final - offset_datos;
+        if (offset_constantes != -1) {
+            tamano_datos = offset_constantes - offset_datos;
+        } else if (offset_codigo != -1) {
+            tamano_datos = offset_codigo - offset_datos;
+        } else {
+            tamano_datos = posicion_final - offset_datos;
+        }
     }
+
+    // 2. Tamaño de .constantes (desde su inicio hasta el inicio de .codigo)
+    if (offset_constantes != -1) {
+        if (offset_codigo != -1) {
+            tamano_constantes = offset_codigo - offset_constantes;
+        } else {
+            tamano_constantes = posicion_final - offset_constantes;
+        }
+    }
+
+    // 3. Tamaño de .codigo (desde su inicio hasta el final del archivo)
     if (offset_codigo != -1) {
         tamano_codigo = posicion_final - offset_codigo;
     }
 
     
 
-    // 2. Volver al principio y rellenar la cabecera JMA
+    // 2. Volver al principio y escribir la cabecera JMA v2
     fseek(archivo_escritura, 0, SEEK_SET);
-    
-    // Firma mágica: "JMA\0"
-    fputc(0x4A, archivo_escritura); fputc(0x4D, archivo_escritura); fputc(0x41, archivo_escritura); fputc(0x00, archivo_escritura);
-    
-    // Versión: 1.0
-    fputc(0x01, archivo_escritura); fputc(0x00, archivo_escritura); fputc(0x00, archivo_escritura); fputc(0x00, archivo_escritura);
-    
-    // Punto de entrada (0x400000)
-    long long entry_point = 0x400000;
-    fwrite(&entry_point, sizeof(long long), 1, archivo_escritura);
-    
-    // Offset y Tamaño del Código
-    fwrite(&offset_codigo, sizeof(long), 1, archivo_escritura);
-    fwrite(&tamano_codigo, sizeof(long), 1, archivo_escritura);
-    
-    // Offset y Tamaño de los Datos
-    fwrite(&offset_datos, sizeof(long), 1, archivo_escritura);
-    fwrite(&tamano_datos, sizeof(long), 1, archivo_escritura);
 
-    // Offset y Tamaño de las Constantes
-    fwrite(&offset_constantes, sizeof(long), 1, archivo_escritura);
-    fwrite(&tamano_constantes, sizeof(long), 1, archivo_escritura);
+    CabeceraJMA cabecera_final;
+    memset(&cabecera_final, 0, sizeof(CabeceraJMA));
 
-    // Tamaño de Reservado (BSS)
-    fwrite(&tamano_reservado, sizeof(long), 1, archivo_escritura);
-    
-    // Relleno hasta 128 bytes (128 - 72 = 56)
-    for (int i = 0; i < 56; i++) {
-        fputc(0x00, archivo_escritura);
-    }
+    memcpy(cabecera_final.firma, "JMA", 3);
+    cabecera_final.version = 2;                        // <-- AQUÍ ROMPEMOS COMPATIBILIDAD
+    cabecera_final.entry_point = 0x400000;
+    cabecera_final.offset_codigo = offset_codigo;
+    cabecera_final.tamano_codigo = tamano_codigo;
+    cabecera_final.offset_datos = offset_datos;
+    cabecera_final.tamano_datos = tamano_datos;
+    cabecera_final.offset_constantes = offset_constantes;
+    cabecera_final.tamano_constantes = tamano_constantes;
+    cabecera_final.tamano_reservado = tamano_reservado;
+    cabecera_final.tamano_heap_inicial = 1048576;      // 1MB de heap dinámico
+
+    fwrite(&cabecera_final, sizeof(CabeceraJMA), 1, archivo_escritura);
+
+    printf("Ensamblado exitoso. Formato JMA v2 generado.\n");
+    printf("  -> Heap inicial: %ld bytes\n", cabecera_final.tamano_heap_inicial);
 } // <--- CIERRA LA FUNCIÓN
 
-// CARGADOR JMA (Integrado)
-typedef struct {
-    char firma[4];
-    int version;
-    long long entry_point;
-    long offset_codigo;
-    long tamano_codigo;
-    long offset_datos;
-    long tamano_datos;
-    long offset_constantes;
-    long tamano_constantes;
-    long tamano_reservado; // BSS no necesita offset, va al final
-    char relleno[56];      // Relleno para llegar a 128
-} CabeceraJMA;
+
 
 void cargar_y_ejecutar(const char *nombre_archivo) {
     FILE *archivo = fopen(nombre_archivo, "rb");
@@ -3325,45 +3350,87 @@ void cargar_y_ejecutar(const char *nombre_archivo) {
         return;
     }
 
-    // Calcular el tamaño total de memoria (Código + Datos + Constantes + Reservado)
-    long tamano_total = cabecera.offset_codigo + cabecera.tamano_codigo;
-    if (cabecera.offset_datos + cabecera.tamano_datos > tamano_total) tamano_total = cabecera.offset_datos + cabecera.tamano_datos;
-    if (cabecera.offset_constantes + cabecera.tamano_constantes > tamano_total) tamano_total = cabecera.offset_constantes + cabecera.tamano_constantes;
-    
-    // Añadir el tamaño reservado (BSS) al final
-    tamano_total += cabecera.tamano_reservado;
-    
-    void *memoria = mmap(NULL, tamano_total, PROT_READ | PROT_WRITE | PROT_EXEC, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-    if (memoria == MAP_FAILED) {
-        printf("Error en mmap\n");
+    // 1. Verificación de versión (Rechaza los .jma viejos generados antes de hoy)
+    if (cabecera.version != 2) {
+        printf("Error: Formato de archivo antiguo (JMA v%d).\n", cabecera.version);
+        printf("Por favor, vuelve a compilar y ensamblar el archivo con la nueva versión.\n");
         fclose(archivo);
         return;
     }
 
-    // Copiar Código
+    // 2. Mapear el archivo completo en memoria (Solo Lectura inicialmente)
+    fseek(archivo, 0, SEEK_END);
+    long tamano_archivo = ftell(archivo);
+    fseek(archivo, 0, SEEK_SET);
+
+    void *base_archivo = mmap(NULL, tamano_archivo, PROT_READ, 
+                              MAP_PRIVATE, fileno(archivo), 0);
+    if (base_archivo == MAP_FAILED) {
+        printf("Error en mmap del archivo\n");
+        fclose(archivo);
+        return;
+    }
+
+    // 3. Hacer ejecutable el segmento de código
     if (cabecera.tamano_codigo > 0) {
-        fseek(archivo, cabecera.offset_codigo, SEEK_SET);
-        fread((char*)memoria + cabecera.offset_codigo, 1, cabecera.tamano_codigo, archivo);
+        void *inicio_codigo = (char*)base_archivo + cabecera.offset_codigo;
+        long pagina = sysconf(_SC_PAGESIZE);
+        void *inicio_codigo_alineado = (void*)((long)inicio_codigo & ~(pagina - 1));
+        long tamano_codigo_alineado = cabecera.tamano_codigo + 
+                                      ((long)inicio_codigo - (long)inicio_codigo_alineado);
+        
+        mprotect(inicio_codigo_alineado, tamano_codigo_alineado, PROT_READ | PROT_EXEC);
     }
 
-    // Copiar Datos
-    if (cabecera.tamano_datos > 0) {
-        fseek(archivo, cabecera.offset_datos, SEEK_SET);
-        fread((char*)memoria + cabecera.offset_datos, 1, cabecera.tamano_datos, archivo);
+    fclose(archivo); 
+
+    // 4. Mapear BSS (.reservado)
+    void *bss_inicio = NULL;
+    if (cabecera.tamano_reservado > 0) {
+        bss_inicio = mmap(NULL, cabecera.tamano_reservado,
+                          PROT_READ | PROT_WRITE,
+                          MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
     }
 
-    // Copiar Constantes
-    if (cabecera.tamano_constantes > 0) {
-        fseek(archivo, cabecera.offset_constantes, SEEK_SET);
-        fread((char*)memoria + cabecera.offset_constantes, 1, cabecera.tamano_constantes, archivo);
+    // 5. Mapear Heap dinámico
+    void *heap_inicio = NULL;
+    if (cabecera.tamano_heap_inicial > 0) {
+        heap_inicio = mmap(NULL, cabecera.tamano_heap_inicial,
+                           PROT_READ | PROT_WRITE,
+                           MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
     }
-    
-    fclose(archivo);
+
+    // 6. Escribir el puntero al heap en los primeros 8 bytes de .datos (Opción 2)
+    if (heap_inicio && cabecera.tamano_datos >= 8) {
+        void *inicio_datos = (char*)base_archivo + cabecera.offset_datos;
+        long pagina = sysconf(_SC_PAGESIZE);
+        void *inicio_datos_alineado = (void*)((long)inicio_datos & ~(pagina - 1));
+        long tamano_datos_alineado = cabecera.tamano_datos + 
+                                     ((long)inicio_datos - (long)inicio_datos_alineado);
+        
+        // Cambiamos temporalmente a RW para escribir el puntero
+        mprotect(inicio_datos_alineado, tamano_datos_alineado, PROT_READ | PROT_WRITE);
+        *((void**)inicio_datos) = heap_inicio;
+        // (Opcional: volver a poner solo PROT_READ si quisieras máxima seguridad, 
+        // pero dejarlo RW es estándar para variables globales)
+    }
 
     printf("Ejecutando %s (JMA v%d)...\n", nombre_archivo, cabecera.version);
+    printf("  -> Codigo:    %p (%ld bytes)\n", (char*)base_archivo + cabecera.offset_codigo, cabecera.tamano_codigo);
+    printf("  -> Heap:      %p (%ld bytes)\n", heap_inicio, cabecera.tamano_heap_inicial);
 
-    void *punto_entrada = (char*)memoria + cabecera.offset_codigo;
-    
+    // 7. CÁLCULO DEL PUNTO DE ENTRADA (Soporta Absolutas y Relativas)
+    void *punto_entrada;
+    if (cabecera.entry_point >= 0x400000) {
+        // Es una dirección ABSOLUTA (ej: 0x400000). Calculamos el offset real.
+        long offset_real = cabecera.entry_point - 0x400000;
+        punto_entrada = (char*)base_archivo + cabecera.offset_codigo + offset_real;
+    } else {
+        // Es una dirección RELATIVA (ej: 0).
+        punto_entrada = (char*)base_archivo + cabecera.offset_codigo + cabecera.entry_point;
+    }
+
+    // 8. Saltar al código
     asm volatile (
         "andq $-16, %%rsp\n"
         "jmp *%0\n"
