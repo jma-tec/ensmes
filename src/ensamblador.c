@@ -128,6 +128,26 @@ int obtener_id_registro(const char *nombre) {
     return -1; 
 }
 
+int obtener_id_registro_vectorial(const char *nombre) {
+    if (strcmp(nombre, "xmm0_128") == 0) return 0;
+    if (strcmp(nombre, "xmm1_128") == 0) return 1;
+    if (strcmp(nombre, "xmm2_128") == 0) return 2;
+    if (strcmp(nombre, "xmm3_128") == 0) return 3;
+    if (strcmp(nombre, "xmm4_128") == 0) return 4;
+    if (strcmp(nombre, "xmm5_128") == 0) return 5;
+    if (strcmp(nombre, "xmm6_128") == 0) return 6;
+    if (strcmp(nombre, "xmm7_128") == 0) return 7;
+    if (strcmp(nombre, "xmm8_128") == 0) return 8;
+    if (strcmp(nombre, "xmm9_128") == 0) return 9;
+    if (strcmp(nombre, "xmm10_128") == 0) return 10;
+    if (strcmp(nombre, "xmm11_128") == 0) return 11;
+    if (strcmp(nombre, "xmm12_128") == 0) return 12;
+    if (strcmp(nombre, "xmm13_128") == 0) return 13;
+    if (strcmp(nombre, "xmm14_128") == 0) return 14;
+    if (strcmp(nombre, "xmm15_128") == 0) return 15;
+    return -1;
+}
+
 typedef struct {
     char nombre_etiqueta[50];
     long posicion_hueco; // Dónde están los 4 bytes a rellenar
@@ -220,7 +240,7 @@ void ensamblador_archivo(FILE *archivo_lectura, FILE *archivo_escritura)
             continue; // Pasamos a la siguiente línea
         }
 
-        // 3. GESTIÓN DE SECCIONES Y DATOS
+        
         // 3. GESTIÓN DE SECCIONES Y DATOS
         if (strcmp(token, ".datos") == 0) {
             alinear_seccion(archivo_escritura, 4096);  // <-- AÑADIR ESTA LÍNEA
@@ -270,6 +290,36 @@ void ensamblador_archivo(FILE *archivo_lectura, FILE *archivo_escritura)
             fwrite(&valor, sizeof(long long), 1, archivo_escritura);
             continue;
         }
+        else if (strcmp(token, "definir_flotante") == 0) {
+            // Convierte el string a float de 32 bits (IEEE 754)
+            float valor = strtof(token_numero, NULL);
+            fwrite(&valor, sizeof(float), 1, archivo_escritura);
+            continue;
+        }
+        else if (strcmp(token, "definir_vectflot") == 0) {
+            
+            // Encontrar dónde empieza token_numero dentro de linea
+            char *pos = strstr(linea, token_numero);
+            if (pos != NULL) {
+                pos += strlen(token_numero); // Saltar el primer número
+                
+                // Ahora parsear manualmente el resto de la línea buscando floats
+                while (*pos != '\0' && *pos != '\n') {
+                    // Saltar espacios, comas, tabs
+                    while (*pos == ' ' || *pos == ',' || *pos == '\t') pos++;
+                    if (*pos == '\0' || *pos == '\n' || *pos == '#') break;
+                    
+                    // Convertir float desde esta posición
+                    char *endptr;
+                    float valor = strtof(pos, &endptr);
+                    if (endptr == pos) break; // No se pudo convertir
+                    
+                    fwrite(&valor, sizeof(float), 1, archivo_escritura);
+                    pos = endptr;
+                }
+            }
+            continue;
+        }
         else if (strcmp(token, "reservar_byte") == 0) {
             int cantidad = atoi(token_numero);
             for (int i = 0; i < cantidad; i++) { fputc(0x00, archivo_escritura); }
@@ -294,7 +344,19 @@ void ensamblador_archivo(FILE *archivo_lectura, FILE *archivo_escritura)
             tamano_reservado += cantidad * 8;
             continue;
         }
-
+        else if (strcmp(token, "reservar_flotante") == 0) {
+            // Reserva espacio para N floats (4 bytes cada uno)
+            int cantidad = atoi(token_numero);
+            for (int i = 0; i < cantidad * 4; i++) { fputc(0x00, archivo_escritura); }
+            tamano_reservado += cantidad * 4;
+            continue;
+        }
+        else if (strcmp(token, "reservar_vectflot") == 0) {
+            int cantidad = atoi(token_numero);
+            for (int i = 0; i < cantidad * 4; i++) { fputc(0x00, archivo_escritura); }
+            tamano_reservado += cantidad * 4;
+            continue;
+        }
         // 4. INSTRUCCIONES
         if(strcmp(token, "pausa") == 0) {
             fputc(0x90, archivo_escritura) ;
@@ -3267,7 +3329,729 @@ void ensamblador_archivo(FILE *archivo_lectura, FILE *archivo_escritura)
                 fputc(0x41, archivo_escritura); fputc(0xF6, archivo_escritura); fputc(0xF7, archivo_escritura); // DIV R15B
             }
         }
-    } // <--- CIERRA EL WHILE
+// INSTRUCCIONES Y REGISTROS VECTORIALES (128, 256 BITS)
+else if(strcmp(token, "copiar_vector") == 0) {
+    int id_destino = obtener_id_registro_vectorial(token_registros);
+    
+    if (id_destino != -1) {
+        // ==========================================
+        // CASO 1: Registro a Registro (xmm, xmm)
+        // ==========================================
+        int id_origen = obtener_id_registro_vectorial(token_numero);
+        if (id_origen != -1) {
+            int rex = 0x40;
+            if (id_destino >= 8) rex |= 0x04; // REX.R
+            if (id_origen >= 8) rex |= 0x01;  // REX.B
+
+            // ModR/M: reg = destino, r/m = origen
+            int modrm = 0xC0 | ((id_destino & 7) << 3) | (id_origen & 7);
+
+            if (rex != 0x40) fputc(rex, archivo_escritura);
+            fputc(0x0F, archivo_escritura); // Escape SSE
+            fputc(0x28, archivo_escritura); // Opcode MOVAPS (Reg a Reg)
+            fputc(modrm, archivo_escritura);
+            continue;
+        }
+
+        // ==========================================
+        // CASO 2: Memoria a Registro ([mem], xmm)
+        // ==========================================
+        char nombre_memoria[50];
+        strcpy(nombre_memoria, token_numero);
+        int es_indirecto = 0;
+        
+        if (nombre_memoria[0] == '[') {
+            memmove(nombre_memoria, nombre_memoria + 1, strlen(nombre_memoria));
+            nombre_memoria[strlen(nombre_memoria) - 1] = '\0';
+            es_indirecto = 1;
+        } else if (strncmp(nombre_memoria, "r_", 2) == 0) {
+            es_indirecto = 1; // Asumimos indirecto si es un registro sin corchetes
+        }
+
+        if (es_indirecto) {
+            char base_reg[50] = "";
+            long offset = 0;
+            char *mas = strchr(nombre_memoria, '+');
+            char *menos = strchr(nombre_memoria, '-');
+            
+            if (mas != NULL) {
+                *mas = '\0'; strcpy(base_reg, nombre_memoria); offset = atoi(mas + 1);
+            } else if (menos != NULL) {
+                *menos = '\0'; strcpy(base_reg, nombre_memoria); offset = -atoi(menos + 1);
+            } else {
+                strcpy(base_reg, nombre_memoria);
+            }
+
+            int id_base = obtener_id_registro(base_reg);
+            if (id_base != -1) {
+                int rex = 0x40;
+                if (id_destino >= 8) rex |= 0x04; // REX.R
+                if (id_base >= 8) rex |= 0x01;    // REX.B
+
+                int mod = 0;
+                if (offset != 0) mod = 0x80;           // Desplazamiento de 32 bits
+                else if ((id_base & 7) == 5) mod = 0x40; // RBP/R13 sin offset necesita disp8=0
+
+                int rm = id_base & 7;
+                int reg = id_destino & 7;
+
+                if (rex != 0x40) fputc(rex, archivo_escritura);
+                fputc(0x0F, archivo_escritura); 
+                fputc(0x10, archivo_escritura); // Opcode MOVUPS (Memoria a Registro)
+                
+                if (rm == 4) { // RSP/R12 requiere byte SIB
+                    fputc(mod | (reg << 3) | 4, archivo_escritura);
+                    fputc(0x24, archivo_escritura); // SIB: scale=0, index=4(none), base=4
+                } else {
+                    fputc(mod | (reg << 3) | rm, archivo_escritura);
+                }
+                
+                if (mod == 0x80) {
+                    fwrite(&offset, sizeof(int), 1, archivo_escritura);
+                } else if (mod == 0x40) {
+                    fputc(0x00, archivo_escritura); // disp8 = 0
+                }
+                continue;
+            }
+        }
+
+        // ==========================================
+        // CASO 3: Registro a Memoria (xmm, [mem])
+        // ==========================================
+        strcpy(nombre_memoria, token_registros); // ¡OJO: Aquí el destino es la memoria!
+        if (nombre_memoria[0] == '[') {
+            memmove(nombre_memoria, nombre_memoria + 1, strlen(nombre_memoria));
+            nombre_memoria[strlen(nombre_memoria) - 1] = '\0';
+            es_indirecto = 1;
+        } else if (strncmp(nombre_memoria, "r_", 2) == 0) {
+            es_indirecto = 1;
+        }
+
+        if (es_indirecto) {
+            char base_reg[50] = "";
+            long offset = 0;
+            char *mas = strchr(nombre_memoria, '+');
+            char *menos = strchr(nombre_memoria, '-');
+            
+            if (mas != NULL) {
+                *mas = '\0'; strcpy(base_reg, nombre_memoria); offset = atoi(mas + 1);
+            } else if (menos != NULL) {
+                *menos = '\0'; strcpy(base_reg, nombre_memoria); offset = -atoi(menos + 1);
+            } else {
+                strcpy(base_reg, nombre_memoria);
+            }
+
+            int id_base = obtener_id_registro(base_reg);
+            // id_origen ya lo tenemos del principio de la función
+            int id_origen_check = obtener_id_registro_vectorial(token_numero);
+            
+            if (id_base != -1 && id_origen_check != -1) {
+                int rex = 0x40;
+                if (id_origen_check >= 8) rex |= 0x04; // REX.R (ahora el reg es el origen)
+                if (id_base >= 8) rex |= 0x01;         // REX.B
+
+                int mod = 0;
+                if (offset != 0) mod = 0x80;
+                else if ((id_base & 7) == 5) mod = 0x40;
+
+                int rm = id_base & 7;
+                int reg = id_origen_check & 7; // ¡OJO: reg es el ORIGEN en este caso!
+
+                if (rex != 0x40) fputc(rex, archivo_escritura);
+                fputc(0x0F, archivo_escritura); 
+                fputc(0x11, archivo_escritura); // Opcode MOVUPS (Registro a Memoria)
+                
+                if (rm == 4) {
+                    fputc(mod | (reg << 3) | 4, archivo_escritura);
+                    fputc(0x24, archivo_escritura);
+                } else {
+                    fputc(mod | (reg << 3) | rm, archivo_escritura);
+                }
+                
+                if (mod == 0x80) {
+                    fwrite(&offset, sizeof(int), 1, archivo_escritura);
+                } else if (mod == 0x40) {
+                    fputc(0x00, archivo_escritura);
+                }
+                continue;
+            }
+        }
+    }
+}
+    else if(strcmp(token, "cargar_vector") == 0) {
+        // Sintaxis: cargar_vector [origen_memoria], xmm_destino
+        int id_destino = obtener_id_registro_vectorial(token_registros);
+        
+        if (id_destino != -1) {
+            char nombre_memoria[50];
+            strcpy(nombre_memoria, token_numero);
+            
+            // Limpiar corchetes si existen
+            if (nombre_memoria[0] == '[') {
+                memmove(nombre_memoria, nombre_memoria + 1, strlen(nombre_memoria));
+                nombre_memoria[strlen(nombre_memoria) - 1] = '\0';
+            }
+            
+            // Parsear base + offset
+            char base_reg[50] = "";
+            long offset = 0;
+            char *mas = strchr(nombre_memoria, '+');
+            char *menos = strchr(nombre_memoria, '-');
+            
+            if (mas != NULL) {
+                *mas = '\0'; strcpy(base_reg, nombre_memoria); offset = atoi(mas + 1);
+            } else if (menos != NULL) {
+                *menos = '\0'; strcpy(base_reg, nombre_memoria); offset = -atoi(menos + 1);
+            } else {
+                strcpy(base_reg, nombre_memoria);
+            }
+            
+            int id_base = obtener_id_registro(base_reg);
+            if (id_base != -1) {
+                int rex = 0x40;
+                if (id_destino >= 8) rex |= 0x04; // REX.R
+                if (id_base >= 8) rex |= 0x01;    // REX.B
+                
+                int mod = 0;
+                if (offset != 0) mod = 0x80;           // disp32
+                else if ((id_base & 7) == 5) mod = 0x40; // RBP/R13 necesita disp8=0
+                
+                int rm = id_base & 7;
+                int reg = id_destino & 7;
+                
+                if (rex != 0x40) fputc(rex, archivo_escritura);
+                fputc(0x0F, archivo_escritura); 
+                fputc(0x10, archivo_escritura); // Opcode MOVUPS (mem → reg)
+                
+                if (rm == 4) { // RSP/R12 requiere SIB
+                    fputc(mod | (reg << 3) | 4, archivo_escritura);
+                    fputc(0x24, archivo_escritura);
+                } else {
+                    fputc(mod | (reg << 3) | rm, archivo_escritura);
+                }
+                
+                if (mod == 0x80) {
+                    fwrite(&offset, sizeof(int), 1, archivo_escritura);
+                } else if (mod == 0x40) {
+                    fputc(0x00, archivo_escritura);
+                }
+            }
+        }
+    }
+    
+    else if(strcmp(token, "guardar_vector") == 0) {
+        // Sintaxis: guardar_vector xmm_origen, [destino_memoria]
+        int id_origen = obtener_id_registro_vectorial(token_numero);
+        
+        if (id_origen != -1) {
+            char nombre_memoria[50];
+            strcpy(nombre_memoria, token_registros);
+            
+            if (nombre_memoria[0] == '[') {
+                memmove(nombre_memoria, nombre_memoria + 1, strlen(nombre_memoria));
+                nombre_memoria[strlen(nombre_memoria) - 1] = '\0';
+            }
+            
+            char base_reg[50] = "";
+            long offset = 0;
+            char *mas = strchr(nombre_memoria, '+');
+            char *menos = strchr(nombre_memoria, '-');
+            
+            if (mas != NULL) {
+                *mas = '\0'; strcpy(base_reg, nombre_memoria); offset = atoi(mas + 1);
+            } else if (menos != NULL) {
+                *menos = '\0'; strcpy(base_reg, nombre_memoria); offset = -atoi(menos + 1);
+            } else {
+                strcpy(base_reg, nombre_memoria);
+            }
+            
+            int id_base = obtener_id_registro(base_reg);
+            if (id_base != -1) {
+                int rex = 0x40;
+                if (id_origen >= 8) rex |= 0x04; // REX.R
+                if (id_base >= 8) rex |= 0x01;   // REX.B
+                
+                int mod = 0;
+                if (offset != 0) mod = 0x80;
+                else if ((id_base & 7) == 5) mod = 0x40;
+                
+                int rm = id_base & 7;
+                int reg = id_origen & 7; // ¡OJO: aquí reg es el ORIGEN!
+                
+                if (rex != 0x40) fputc(rex, archivo_escritura);
+                fputc(0x0F, archivo_escritura); 
+                fputc(0x11, archivo_escritura); // Opcode MOVUPS (reg → mem)
+                
+                if (rm == 4) {
+                    fputc(mod | (reg << 3) | 4, archivo_escritura);
+                    fputc(0x24, archivo_escritura);
+                } else {
+                    fputc(mod | (reg << 3) | rm, archivo_escritura);
+                }
+                
+                if (mod == 0x80) {
+                    fwrite(&offset, sizeof(int), 1, archivo_escritura);
+                } else if (mod == 0x40) {
+                    fputc(0x00, archivo_escritura);
+                }
+            }
+        }
+    }
+else if(strcmp(token, "sumar_vector") == 0) {
+    // token_numero = origen (puede ser xmm, [reg] o reg)
+    // token_registros = destino (debe ser xmm)
+    
+    int id_destino = obtener_id_registro_vectorial(token_registros);
+    
+    if (id_destino != -1) {
+        // ==========================================
+        // CASO 1: Registro a Registro (xmm, xmm)
+        // ==========================================
+        int id_origen = obtener_id_registro_vectorial(token_numero);
+        if (id_origen != -1) {
+            int rex = 0x40;
+            if (id_destino >= 8) rex |= 0x04; // REX.R
+            if (id_origen >= 8) rex |= 0x01;  // REX.B
+
+            int modrm = 0xC0 | ((id_destino & 7) << 3) | (id_origen & 7);
+
+            if (rex != 0x40) fputc(rex, archivo_escritura);
+            fputc(0x0F, archivo_escritura); // Escape SSE
+            fputc(0x58, archivo_escritura); // Opcode ADDPS
+            fputc(modrm, archivo_escritura);
+            continue;
+        }
+
+        // ==========================================
+        // CASO 2: Memoria a Registro ([reg] o reg, xmm)
+        // ==========================================
+        char nombre_memoria[50];
+        strcpy(nombre_memoria, token_numero);
+        int es_indirecto = 0;
+        
+        if (nombre_memoria[0] == '[') {
+            memmove(nombre_memoria, nombre_memoria + 1, strlen(nombre_memoria));
+            nombre_memoria[strlen(nombre_memoria) - 1] = '\0';
+            es_indirecto = 1;
+        } else if (strncmp(nombre_memoria, "r_", 2) == 0) {
+            es_indirecto = 1; // Asumimos indirecto si es un registro sin corchetes
+        }
+
+        if (es_indirecto) {
+            char base_reg[50] = "";
+            long offset = 0;
+            char *mas = strchr(nombre_memoria, '+');
+            char *menos = strchr(nombre_memoria, '-');
+            
+            if (mas != NULL) {
+                *mas = '\0'; strcpy(base_reg, nombre_memoria); offset = atoi(mas + 1);
+            } else if (menos != NULL) {
+                *menos = '\0'; strcpy(base_reg, nombre_memoria); offset = -atoi(menos + 1);
+            } else {
+                strcpy(base_reg, nombre_memoria);
+            }
+
+            int id_base = obtener_id_registro(base_reg);
+            if (id_base != -1) {
+                int rex = 0x40;
+                if (id_destino >= 8) rex |= 0x04; // REX.R
+                if (id_base >= 8) rex |= 0x01;    // REX.B
+
+                int mod = 0;
+                if (offset != 0) mod = 0x80;           // Desplazamiento de 32 bits
+                else if ((id_base & 7) == 5) mod = 0x40; // RBP/R13 sin offset necesita disp8=0
+
+                int rm = id_base & 7;
+                int reg = id_destino & 7;
+
+                // 1. Prefijo REX
+                if (rex != 0x40) fputc(rex, archivo_escritura);
+                
+                // 2. Opcode ADDPS (0F 58)
+                fputc(0x0F, archivo_escritura);
+                fputc(0x58, archivo_escritura);
+                
+                // 3. ModR/M (y SIB si es necesario)
+                if (rm == 4) { // RSP/R12 requiere byte SIB
+                    fputc(mod | (reg << 3) | 4, archivo_escritura);
+                    fputc(0x24, archivo_escritura); // SIB: scale=0, index=4(none), base=4(RSP/R12)
+                } else {
+                    fputc(mod | (reg << 3) | rm, archivo_escritura);
+                }
+                
+                // 4. Desplazamiento
+                if (mod == 0x80) {
+                    fwrite(&offset, sizeof(int), 1, archivo_escritura);
+                } else if (mod == 0x40) {
+                    fputc(0x00, archivo_escritura); // disp8 = 0
+                }
+                continue;
+            }
+        }
+    }
+}
+else if(strcmp(token, "restar_vector") == 0) {
+    
+    
+    int id_destino = obtener_id_registro_vectorial(token_registros);
+    
+    if (id_destino != -1) {
+        int id_origen = obtener_id_registro_vectorial(token_numero);
+        if (id_origen != -1) {
+            int rex = 0x40;
+            if (id_destino >= 8) rex |= 0x04; // REX.R
+            if (id_origen >= 8) rex |= 0x01;  // REX.B
+
+            int modrm = 0xC0 | ((id_destino & 7) << 3) | (id_origen & 7);
+
+            if (rex != 0x40) fputc(rex, archivo_escritura);
+            fputc(0x0F, archivo_escritura); 
+            fputc(0x5C, archivo_escritura); 
+            fputc(modrm, archivo_escritura);
+            continue;
+        }
+
+        
+        char nombre_memoria[50];
+        strcpy(nombre_memoria, token_numero);
+        int es_indirecto = 0;
+        
+        if (nombre_memoria[0] == '[') {
+            memmove(nombre_memoria, nombre_memoria + 1, strlen(nombre_memoria));
+            nombre_memoria[strlen(nombre_memoria) - 1] = '\0';
+            es_indirecto = 1;
+        } else if (strncmp(nombre_memoria, "r_", 2) == 0) {
+            es_indirecto = 1; // Asumimos indirecto si es un registro sin corchetes
+        }
+
+        if (es_indirecto) {
+            char base_reg[50] = "";
+            long offset = 0;
+            char *mas = strchr(nombre_memoria, '+');
+            char *menos = strchr(nombre_memoria, '-');
+            
+            if (mas != NULL) {
+                *mas = '\0'; strcpy(base_reg, nombre_memoria); offset = atoi(mas + 1);
+            } else if (menos != NULL) {
+                *menos = '\0'; strcpy(base_reg, nombre_memoria); offset = -atoi(menos + 1);
+            } else {
+                strcpy(base_reg, nombre_memoria);
+            }
+
+            int id_base = obtener_id_registro(base_reg);
+            if (id_base != -1) {
+                int rex = 0x40;
+                if (id_destino >= 8) rex |= 0x04; // REX.R
+                if (id_base >= 8) rex |= 0x01;    // REX.B
+
+                int mod = 0;
+                if (offset != 0) mod = 0x80;           
+                else if ((id_base & 7) == 5) mod = 0x40; 
+
+                int rm = id_base & 7;
+                int reg = id_destino & 7;
+
+                
+                if (rex != 0x40) fputc(rex, archivo_escritura);
+                
+                // 2. Opcode ADDPS (0F 58)
+                fputc(0x0F, archivo_escritura);
+                fputc(0x5C, archivo_escritura);
+                
+                
+                if (rm == 4) { 
+                    fputc(mod | (reg << 3) | 4, archivo_escritura);
+                    fputc(0x24, archivo_escritura); 
+                } else {
+                    fputc(mod | (reg << 3) | rm, archivo_escritura);
+                }
+                
+                // 4. Desplazamiento
+                if (mod == 0x80) {
+                    fwrite(&offset, sizeof(int), 1, archivo_escritura);
+                } else if (mod == 0x40) {
+                    fputc(0x00, archivo_escritura); // disp8 = 0
+                }
+                continue;
+            }
+        }
+    }
+}
+else if(strcmp(token, "multiplicar_vector") == 0) {
+    
+    
+    int id_destino = obtener_id_registro_vectorial(token_registros);
+    
+    if (id_destino != -1) {
+        int id_origen = obtener_id_registro_vectorial(token_numero);
+        if (id_origen != -1) {
+            int rex = 0x40;
+            if (id_destino >= 8) rex |= 0x04; // REX.R
+            if (id_origen >= 8) rex |= 0x01;  // REX.B
+
+            int modrm = 0xC0 | ((id_destino & 7) << 3) | (id_origen & 7);
+
+            if (rex != 0x40) fputc(rex, archivo_escritura);
+            fputc(0x0F, archivo_escritura); 
+            fputc(0x59, archivo_escritura); 
+            fputc(modrm, archivo_escritura);
+            continue;
+        }
+
+        char nombre_memoria[50];
+        strcpy(nombre_memoria, token_numero);
+        int es_indirecto = 0;
+        
+        if (nombre_memoria[0] == '[') {
+            memmove(nombre_memoria, nombre_memoria + 1, strlen(nombre_memoria));
+            nombre_memoria[strlen(nombre_memoria) - 1] = '\0';
+            es_indirecto = 1;
+        } else if (strncmp(nombre_memoria, "r_", 2) == 0) {
+            es_indirecto = 1; // Asumimos indirecto si es un registro sin corchetes
+        }
+
+        if (es_indirecto) {
+            char base_reg[50] = "";
+            long offset = 0;
+            char *mas = strchr(nombre_memoria, '+');
+            char *menos = strchr(nombre_memoria, '-');
+            
+            if (mas != NULL) {
+                *mas = '\0'; strcpy(base_reg, nombre_memoria); offset = atoi(mas + 1);
+            } else if (menos != NULL) {
+                *menos = '\0'; strcpy(base_reg, nombre_memoria); offset = -atoi(menos + 1);
+            } else {
+                strcpy(base_reg, nombre_memoria);
+            }
+
+            int id_base = obtener_id_registro(base_reg);
+            if (id_base != -1) {
+                int rex = 0x40;
+                if (id_destino >= 8) rex |= 0x04; // REX.R
+                if (id_base >= 8) rex |= 0x01;    // REX.B
+
+                int mod = 0;
+                if (offset != 0) mod = 0x80;           
+                else if ((id_base & 7) == 5) mod = 0x40; 
+
+                int rm = id_base & 7;
+                int reg = id_destino & 7;
+
+                
+                if (rex != 0x40) fputc(rex, archivo_escritura);
+                
+                // 2. Opcode ADDPS (0F 58)
+                fputc(0x0F, archivo_escritura);
+                fputc(0x59, archivo_escritura);
+                
+                
+                if (rm == 4) { 
+                    fputc(mod | (reg << 3) | 4, archivo_escritura);
+                    fputc(0x24, archivo_escritura); 
+                } else {
+                    fputc(mod | (reg << 3) | rm, archivo_escritura);
+                }
+                
+                // 4. Desplazamiento
+                if (mod == 0x80) {
+                    fwrite(&offset, sizeof(int), 1, archivo_escritura);
+                } else if (mod == 0x40) {
+                    fputc(0x00, archivo_escritura); // disp8 = 0
+                }
+                continue;
+            }
+        }
+    }
+}
+else if(strcmp(token, "dividir_vector") == 0) {
+    
+    
+    int id_destino = obtener_id_registro_vectorial(token_registros);
+    
+    if (id_destino != -1) {
+        int id_origen = obtener_id_registro_vectorial(token_numero);
+        if (id_origen != -1) {
+            int rex = 0x40;
+            if (id_destino >= 8) rex |= 0x04; // REX.R
+            if (id_origen >= 8) rex |= 0x01;  // REX.B
+
+            int modrm = 0xC0 | ((id_destino & 7) << 3) | (id_origen & 7);
+
+            if (rex != 0x40) fputc(rex, archivo_escritura);
+            fputc(0x0F, archivo_escritura); 
+            fputc(0x5E, archivo_escritura); 
+            fputc(modrm, archivo_escritura);
+            continue;
+        }
+
+        char nombre_memoria[50];
+        strcpy(nombre_memoria, token_numero);
+        int es_indirecto = 0;
+        
+        if (nombre_memoria[0] == '[') {
+            memmove(nombre_memoria, nombre_memoria + 1, strlen(nombre_memoria));
+            nombre_memoria[strlen(nombre_memoria) - 1] = '\0';
+            es_indirecto = 1;
+        } else if (strncmp(nombre_memoria, "r_", 2) == 0) {
+            es_indirecto = 1; // Asumimos indirecto si es un registro sin corchetes
+        }
+
+        if (es_indirecto) {
+            char base_reg[50] = "";
+            long offset = 0;
+            char *mas = strchr(nombre_memoria, '+');
+            char *menos = strchr(nombre_memoria, '-');
+            
+            if (mas != NULL) {
+                *mas = '\0'; strcpy(base_reg, nombre_memoria); offset = atoi(mas + 1);
+            } else if (menos != NULL) {
+                *menos = '\0'; strcpy(base_reg, nombre_memoria); offset = -atoi(menos + 1);
+            } else {
+                strcpy(base_reg, nombre_memoria);
+            }
+
+            int id_base = obtener_id_registro(base_reg);
+            if (id_base != -1) {
+                int rex = 0x40;
+                if (id_destino >= 8) rex |= 0x04; // REX.R
+                if (id_base >= 8) rex |= 0x01;    // REX.B
+
+                int mod = 0;
+                if (offset != 0) mod = 0x80;           
+                else if ((id_base & 7) == 5) mod = 0x40; 
+
+                int rm = id_base & 7;
+                int reg = id_destino & 7;
+
+                
+                if (rex != 0x40) fputc(rex, archivo_escritura);
+                
+                // 2. Opcode ADDPS (0F 58)
+                fputc(0x0F, archivo_escritura);
+                fputc(0x5E, archivo_escritura);
+                
+                
+                if (rm == 4) { 
+                    fputc(mod | (reg << 3) | 4, archivo_escritura);
+                    fputc(0x24, archivo_escritura); 
+                } else {
+                    fputc(mod | (reg << 3) | rm, archivo_escritura);
+                }
+                
+                // 4. Desplazamiento
+                if (mod == 0x80) {
+                    fwrite(&offset, sizeof(int), 1, archivo_escritura);
+                } else if (mod == 0x40) {
+                    fputc(0x00, archivo_escritura); // disp8 = 0
+                }
+                continue;
+            }
+        }
+    }
+}
+    else if(strcmp(token, "y_vector") == 0) {
+        int id_origen = obtener_id_registro_vectorial(token_numero);
+        int id_destino = obtener_id_registro_vectorial(token_registros);
+        if (id_origen != -1 && id_destino != -1) {
+            int rex = 0x40;
+            if (id_destino >= 8) rex |= 0x04;
+            if (id_origen >= 8) rex |= 0x01;
+            int modrm = 0xC0 | ((id_destino & 7) << 3) | (id_origen & 7);
+            if (rex != 0x40) fputc(rex, archivo_escritura);
+            fputc(0x0F, archivo_escritura);
+            fputc(0x54, archivo_escritura); // Opcode ANDPS
+            fputc(modrm, archivo_escritura);
+        }
+    }
+    else if(strcmp(token, "o_vector") == 0) {
+        int id_origen = obtener_id_registro_vectorial(token_numero);
+        int id_destino = obtener_id_registro_vectorial(token_registros);
+        if (id_origen != -1 && id_destino != -1) {
+            int rex = 0x40;
+            if (id_destino >= 8) rex |= 0x04;
+            if (id_origen >= 8) rex |= 0x01;
+            int modrm = 0xC0 | ((id_destino & 7) << 3) | (id_origen & 7);
+            if (rex != 0x40) fputc(rex, archivo_escritura);
+            fputc(0x0F, archivo_escritura);
+            fputc(0x56, archivo_escritura); // Opcode ORPS
+            fputc(modrm, archivo_escritura);
+        }
+    }
+    else if(strcmp(token, "o_exclusivo_vector") == 0) {
+        int id_origen = obtener_id_registro_vectorial(token_numero);
+        int id_destino = obtener_id_registro_vectorial(token_registros);
+        if (id_origen != -1 && id_destino != -1) {
+            int rex = 0x40;
+            if (id_destino >= 8) rex |= 0x04;
+            if (id_origen >= 8) rex |= 0x01;
+            int modrm = 0xC0 | ((id_destino & 7) << 3) | (id_origen & 7);
+            if (rex != 0x40) fputc(rex, archivo_escritura);
+            fputc(0x0F, archivo_escritura);
+            fputc(0x57, archivo_escritura); // Opcode XORPS
+            fputc(modrm, archivo_escritura);
+        }
+    }
+    else if(strcmp(token, "comparar_vectigu") == 0) {
+        int id_origen = obtener_id_registro_vectorial(token_numero);
+        int id_destino = obtener_id_registro_vectorial(token_registros);
+        if (id_origen != -1 && id_destino != -1) {
+            int rex = 0x40;
+            if (id_destino >= 8) rex |= 0x04;
+            if (id_origen >= 8) rex |= 0x01;
+            int modrm = 0xC0 | ((id_destino & 7) << 3) | (id_origen & 7);
+            if (rex != 0x40) fputc(rex, archivo_escritura);
+            fputc(0x0F, archivo_escritura);
+            fputc(0xC2, archivo_escritura); // Opcode CMPPS
+            fputc(modrm, archivo_escritura);
+            fputc(0x00, archivo_escritura); // Inmediato: Igual (EQ)
+        }
+    }
+    else if(strcmp(token, "comparar_vectmen") == 0) {
+        int id_origen = obtener_id_registro_vectorial(token_numero);
+        int id_destino = obtener_id_registro_vectorial(token_registros);
+        if (id_origen != -1 && id_destino != -1) {
+            int rex = 0x40;
+            if (id_destino >= 8) rex |= 0x04;
+            if (id_origen >= 8) rex |= 0x01;
+            int modrm = 0xC0 | ((id_destino & 7) << 3) | (id_origen & 7);
+            if (rex != 0x40) fputc(rex, archivo_escritura);
+            fputc(0x0F, archivo_escritura);
+            fputc(0xC2, archivo_escritura); // Opcode CMPPS
+            fputc(modrm, archivo_escritura);
+            fputc(0x01, archivo_escritura); // Inmediato: Menor que (LT)
+        }
+    }
+    else if(strcmp(token, "comparar_vectormenigu") == 0) {
+        int id_origen = obtener_id_registro_vectorial(token_numero);
+        int id_destino = obtener_id_registro_vectorial(token_registros);
+        if (id_origen != -1 && id_destino != -1) {
+            int rex = 0x40;
+            if (id_destino >= 8) rex |= 0x04;
+            if (id_origen >= 8) rex |= 0x01;
+            int modrm = 0xC0 | ((id_destino & 7) << 3) | (id_origen & 7);
+            if (rex != 0x40) fputc(rex, archivo_escritura);
+            fputc(0x0F, archivo_escritura);
+            fputc(0xC2, archivo_escritura); // Opcode CMPPS
+            fputc(modrm, archivo_escritura);
+            fputc(0x02, archivo_escritura); // Inmediato: Menor o igual (LE)
+        }
+    }
+    else if(strcmp(token, "comparar_vectordist") == 0) {
+        int id_origen = obtener_id_registro_vectorial(token_numero);
+        int id_destino = obtener_id_registro_vectorial(token_registros);
+        if (id_origen != -1 && id_destino != -1) {
+            int rex = 0x40;
+            if (id_destino >= 8) rex |= 0x04;
+            if (id_origen >= 8) rex |= 0x01;
+            int modrm = 0xC0 | ((id_destino & 7) << 3) | (id_origen & 7);
+            if (rex != 0x40) fputc(rex, archivo_escritura);
+            fputc(0x0F, archivo_escritura);
+            fputc(0xC2, archivo_escritura); // Opcode CMPPS
+            fputc(modrm, archivo_escritura);
+            fputc(0x04, archivo_escritura); // Inmediato: Distinto (NEQ)
+        }
+    }
+} // <--- CIERRA EL WHILE
 
     // Calcular los tamaños reales
     long posicion_final = ftell(archivo_escritura);

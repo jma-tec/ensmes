@@ -12,7 +12,8 @@ ENSMES es un ensamblador modular escrito en C que genera ejecutables en formato 
 - **Memoria avanzada**: Acceso directo, indirecto `[reg]`, con offset `[reg+offset]` y cálculo completo ModR/M+SIB.
 - **Pila completa**: `empujar` / `sacar` para todos los registros.
 - **Flexibilidad total**: Orden libre de secciones y resolución de etiquetas en dos pasadas.
-
+- **Registros vectoriales de 128 bits**: `xmm0_128-xmm15_128`
+- **Instrucciones vectoriales para 128 bits**
 ### Ejemplo de código (Heap Dinámico y Memoria Indirecta)
 
 ```ensmes

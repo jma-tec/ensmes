@@ -3,6 +3,34 @@ Referencia Técnica: Ensamblador Modular Español
 1. Mapa de Registros
 Para mantener la sintaxis en español, el ensamblador mapea los siguientes nombres a los registros nativos de la arquitectura x86_64:
 
+### Registros Vectoriales de 128 bits (SSE)
+
+| Nombre en ENSMES | Registro x86_64 | ID | Tipo |
+| :--- | :--- | :--- | :--- |
+| `xmm0_128` | XMM0 | 0 | Vectorial SSE |
+| `xmm1_128` | XMM1 | 1 | Vectorial SSE |
+| `xmm2_128` | XMM2 | 2 | Vectorial SSE |
+| `xmm3_128` | XMM3 | 3 | Vectorial SSE |
+| `xmm4_128` | XMM4 | 4 | Vectorial SSE |
+| `xmm5_128` | XMM5 | 5 | Vectorial SSE |
+| `xmm6_128` | XMM6 | 6 | Vectorial SSE |
+| `xmm7_128` | XMM7 | 7 | Vectorial SSE |
+| `xmm8_128` | XMM8 | 8 | Vectorial SSE |
+| `xmm9_128` | XMM9 | 9 | Vectorial SSE |
+| `xmm10_128` | XMM10 | 10 | Vectorial SSE |
+| `xmm11_128` | XMM11 | 11 | Vectorial SSE |
+| `xmm12_128` | XMM12 | 12 | Vectorial SSE |
+| `xmm13_128` | XMM13 | 13 | Vectorial SSE |
+| `xmm14_128` | XMM14 | 14 | Vectorial SSE |
+| `xmm15_128` | XMM15 | 15 | Vectorial SSE |
+
+**Capacidad:** Cada registro XMM almacena **4 floats de 32 bits** (128 bits totales) empaquetados, permitiendo operaciones SIMD (Single Instruction, Multiple Data).
+
+**Nota importante:** Los registros vectoriales operan en un banco de registros independiente de los registros de propósito general (GPR). No se pueden mezclar en operaciones aritméticas (ej. `sumar_vector xmm0_128, r_acumulador64` es ilegal).
+
+---
+
+
 ### Registros de 64 bits (QWORD)
 | Nombre en ENSMES | Registro x86_64 | ID | Tipo |
 | :--- | :--- | :--- | :--- |
@@ -1142,3 +1170,293 @@ Ejemplo sin offset: cargar_doble_puntero [r_base64], r_acumulador32
   -> 0x8B 0x03
 Ejemplo con offset: cargar_doble_puntero [r_base64+4], r_acumulador32
   -> 0x8B 0x83 0x04 0x00 0x00 0x00
+
+## Instrucciones Vectoriales SSE (128 bits)
+
+### 37. copiar_vector (MOVAPS / MOVUPS)
+
+**Operando Registro a Registro:** `copiar_vector xmm_origen, xmm_destino`
+
+**Descripción:** Copia 4 floats (16 bytes) entre registros vectoriales. En modo registro a registro usa el opcode `MOVAPS` (alineado).
+
+**Opcode base:** `0F 28 /r` (MOVAPS reg, reg)
+
+**Ejemplo:** `copiar_vector xmm1_128, xmm0_128` -> 0F 28 C1
+
+
+**Operando Memoria a Registro:** `copiar_vector [registro_base + offset], xmm_destino`
+
+**Descripción:** Carga 4 floats desde memoria hacia un registro vectorial. Usa `MOVUPS` (no alineado) por seguridad, ya que los tensores en el heap no siempre están alineados a 16 bytes.
+
+**Opcode base:** `0F 10 /r` (MOVUPS reg, r/m128)
+
+**Ejemplo sin offset:** `copiar_vector [r_puntero64], xmm0_128` -> 0F 10 06
+
+
+**Ejemplo con offset:** `copiar_vector [r_puntero64 + 16], xmm0_128` -> 0F 10 46 10
+
+
+**Operando Registro a Memoria:** `copiar_vector xmm_origen, [registro_base + offset]`
+
+**Descripción:** Guarda 4 floats desde un registro vectorial hacia memoria.
+
+**Opcode base:** `0F 11 /r` (MOVUPS r/m128, reg)
+
+**Ejemplo:** `copiar_vector xmm0_128, [r_puntero64]` -> 0F 11 06
+
+**[Nota Técnica sobre ModR/M vectorial]:**
+El campo `reg` del byte ModR/M contiene el ID del registro XMM (0-15), y el campo `r/m` contiene el registro base de memoria. Se usa el prefijo REX.R (0x04) para registros xmm8-xmm15 y REX.B (0x01) para bases r8-r15. No se usa REX.W (0x08) porque SSE no opera en modo 64 bits.
+
+---
+
+### 38. cargar_vector (MOVUPS memoria → registro)
+
+**Operando:** `cargar_vector [registro_base + offset], xmm_destino`
+
+**Descripción:** Carga 4 floats (16 bytes) desde la dirección de memoria apuntada por el registro base (con soporte para offsets) hacia el registro vectorial destino. Es la instrucción fundamental para traer tensores desde el heap o la sección `.datos` a los registros SIMD.
+
+**Opcode base:** `0F 10 /r` (MOVUPS xmm, r/m128)
+
+**Ejemplo sin offset:** `cargar_vector [r_puntero64], xmm0_128` -> 0F 10 06
+
+
+**Ejemplo con offset:** `cargar_vector [r_puntero64 + 32], xmm2_128` -> 0F 10 56 20
+
+
+**[Nota Técnica]:**
+Requiere que la base sea un **registro** (no una etiqueta directa). Para acceder a una etiqueta de datos, usar el patrón de dos pasos:
+
+```ensmes
+cargar_direccion mi_tensor, r_puntero64
+cargar_vector [r_puntero64], xmm0_128
+```
+---
+
+### 39. guardar_vector (MOVUPS registro → memoria)
+
+**Operando:** `guardar_vector xmm_origen, [registro_base + offset]`
+
+**Descripción:** Guarda 4 floats (16 bytes) desde el registro vectorial origen hacia la dirección de memoria apuntada por el registro base. Fundamental para escribir resultados de operaciones SIMD de vuelta al heap.
+
+**Opcode base:** `0F 11 /r` (MOVUPS r/m128, xmm)
+
+**Ejemplo sin offset:** `guardar_vector xmm0_128, [r_puntero64]` -> 0F 11 06
+
+
+**Ejemplo con offset:** `guardar_vector xmm1_128, [r_puntero64 + 16]` -> 0F 11 4E 10
+
+
+**[Nota Técnica]:**
+El campo `reg` del ModR/M contiene el registro XMM origen (no el destino, ya que la memoria "recibe"). Igual que `cargar_vector`, requiere registro base, no etiqueta directa.
+
+---
+
+### 40. sumar_vector (ADDPS)
+
+**Operando:** `sumar_vector xmm_origen, xmm_destino`
+
+**Descripción:** Suma 4 floats elemento a elemento en paralelo. Realiza `xmm_destino[i] = xmm_destino[i] + xmm_origen[i]` para i = 0, 1, 2, 3. Es la operación fundamental para sumar tensores en redes neuronales.
+
+**Opcode base:** `0F 58 /r` (ADDPS xmm, xmm/m128)
+
+**Ejemplo registro a registro:** `sumar_vector xmm1_128, xmm0_128` -> 0F 58 C1
+
+
+**Ejemplo memoria a registro:** `sumar_vector [r_puntero64], xmm0_128` -> 0F 58 06
+
+**[Nota Técnica]:**
+Las operaciones aritméticas vectoriales **NO admiten operandos inmediatos**. No se puede hacer `sumar_vector xmm0_128, 5.0`. Para sumar una constante, primero hay que cargarla en un registro XMM desde memoria.
+
+---
+
+### 41. restar_vector (SUBPS)
+
+**Operando:** `restar_vector xmm_origen, xmm_destino`
+
+**Descripción:** Resta 4 floats elemento a elemento en paralelo. Realiza `xmm_destino[i] = xmm_destino[i] - xmm_origen[i]`.
+
+**Opcode base:** `0F 5C /r` (SUBPS xmm, xmm/m128)
+
+**Ejemplo:** `restar_vector xmm1_128, xmm0_128` -> 0F 5C C1
+
+---
+
+### 42. multiplicar_vector (MULPS)
+
+**Operando:** `multiplicar_vector xmm_origen, xmm_destino`
+
+**Descripción:** Multiplica 4 floats elemento a elemento en paralelo. Realiza `xmm_destino[i] = xmm_destino[i] * xmm_origen[i]`. Es la operación más usada en IA para multiplicar pesos por entradas.
+
+**Opcode base:** `0F 59 /r` (MULPS xmm, xmm/m128)
+
+**Ejemplo:** `multiplicar_vector xmm1_128, xmm0_128` -> 0F 59 C1
+
+---
+
+### 43. dividir_vector (DIVPS)
+
+**Operando:** `dividir_vector xmm_origen, xmm_destino`
+
+**Descripción:** Divide 4 floats elemento a elemento en paralelo. Realiza `xmm_destino[i] = xmm_destino[i] / xmm_origen[i]`.
+
+**Opcode base:** `0F 5E /r` (DIVPS xmm, xmm/m128)
+
+**Ejemplo:** `dividir_vector xmm1_128, xmm0_128` -> 0F 5E C1
+
+**[Nota Técnica]:**
+A diferencia de la división entera (`dividir`), que usa registros ocultos `RDX:RAX` y produce cociente y resto, la división vectorial es limpia y simétrica: solo opera registro contra registro sin efectos secundarios.
+
+---
+
+### 44. y_vector (ANDPS)
+
+**Operando:** `y_vector xmm_origen, xmm_destino`
+
+**Descripción:** Realiza AND bit a bit entre 4 floats empaquetados. Fundamental para aplicar **máscaras** en IA (ej. ReLU: poner a cero los valores negativos).
+
+**Opcode base:** `0F 54 /r` (ANDPS xmm, xmm/m128)
+
+**Ejemplo:** `y_vector xmm1_128, xmm0_128` -> 0F 54 C1
+
+---
+
+### 45. o_vector (ORPS)
+
+**Operando:** `o_vector xmm_origen, xmm_destino`
+
+**Descripción:** Realiza OR bit a bit entre 4 floats empaquetados. Útil para combinar máscaras lógicas.
+
+**Opcode base:** `0F 56 /r` (ORPS xmm, xmm/m128)
+
+**Ejemplo:** `o_vector xmm1_128, xmm0_128` -> 0F 56 C1
+
+---
+
+### 46. o_exclusivo_vector (XORPS)
+
+**Operando:** `o_exclusivo_vector xmm_origen, xmm_destino`
+
+**Descripción:** Realiza XOR bit a bit entre 4 floats empaquetados. Útil para invertir máscaras o poner a cero un registro rápidamente (`o_exclusivo_vector xmm0_128, xmm0_128` → xmm0 = 0).
+
+**Opcode base:** `0F 57 /r` (XORPS xmm, xmm/m128)
+
+**Ejemplo:** `o_exclusivo_vector xmm1_128, xmm0_128` -> 0F 57 C1
+
+---
+
+### 47. comparar_vectigu (CMPPS - Igual)
+
+**Operando:** `comparar_vectigu xmm_origen, xmm_destino`
+
+**Descripción:** Compara 4 floats elemento a elemento buscando igualdad. Genera una **máscara** en `xmm_destino`: cada float se convierte en `0xFFFFFFFF` si es igual, o `0x00000000` si no lo es. Esta máscara se puede aplicar luego con `y_vector` para filtrar valores.
+
+**Opcode base:** `0F C2 /r ib` (CMPPS xmm, xmm/m128, imm8)
+**Inmediato:** `0x00` (Equal)
+
+**Ejemplo:** `comparar_vectigu xmm1_128, xmm0_128` -> 0F C2 C1 00
+
+---
+
+### 48. comparar_vectmen (CMPPS - Menor que)
+
+**Operando:** `comparar_vectmen xmm_origen, xmm_destino`
+
+**Descripción:** Compara si `xmm_destino[i] < xmm_origen[i]`. Genera máscara de `0xFFFFFFFF` donde la condición es verdadera. Ideal para detectar valores negativos en una red neuronal.
+
+**Opcode base:** `0F C2 /r ib`
+**Inmediato:** `0x01` (Less Than)
+
+**Ejemplo:** `comparar_vectmen xmm1_128, xmm0_128` -> 0F C2 C1 01
+
+---
+
+### 49. comparar_vectormenigu (CMPPS - Menor o igual)
+
+**Operando:** `comparar_vectormenigu xmm_origen, xmm_destino`
+
+**Descripción:** Compara si `xmm_destino[i] <= xmm_origen[i]`. Genera máscara booleana vectorial.
+
+**Opcode base:** `0F C2 /r ib`
+**Inmediato:** `0x02` (Less than or Equal)
+
+**Ejemplo:** `comparar_vectormenigu xmm1_128, xmm0_128` -> 0F C2 C1 02
+
+---
+
+### 50. comparar_vectordist (CMPPS - Distinto)
+
+**Operando:** `comparar_vectordist xmm_origen, xmm_destino`
+
+**Descripción:** Compara si `xmm_destino[i] != xmm_origen[i]`. Genera máscara donde los valores son diferentes.
+
+**Opcode base:** `0F C2 /r ib`
+**Inmediato:** `0x04` (Not Equal)
+
+**Ejemplo:** `comparar_vectordist xmm1_128, xmm0_128` -> 0F C2 C1 04
+
+**[Nota Técnica sobre Comparaciones Vectoriales]:**
+A diferencia de `comparar` en enteros (que solo establece banderas de CPU), las comparaciones vectoriales **producen un resultado visible** en el registro destino: una máscara de bits completa (0xFFFFFFFF o 0x00000000 por cada float). Esto permite encadenar comparaciones con operaciones lógicas (`y_vector`, `o_vector`) para crear filtros complejos sin saltos de flujo, lo cual es crítico para el rendimiento en IA (evita branch misprediction).
+
+---
+
+## Directivas de Datos Vectoriales
+
+### 51. definir_vectflot
+
+**Sintaxis:** `definir_vectflot valor1, valor2, valor3, valor4`
+
+**Descripción:** Define 4 floats de 32 bits (16 bytes totales) en la sección `.datos`. Los valores se escriben en formato IEEE 754 little-endian.
+
+**Ejemplo:**
+``` ensmes
+mi_vector:
+definir_vectflot 1.0, 2.0, 3.0, 4.0
+```
+
+**[Nota Técnica]:**
+Los separadores pueden ser comas o espacios. Cada float ocupa exactamente 4 bytes. Para tensores de más de 4 elementos, repetir la directiva o usar múltiples líneas.
+
+---
+
+### 52. reservar_vectflot
+
+**Sintaxis:** `reservar_vectflot cantidad`
+
+**Descripción:** Reserva espacio para `cantidad` floats (4 bytes cada uno) en la sección `.datos`, inicializado a cero.
+
+**Ejemplo:**
+
+``` ensmes
+resultado:
+reservar_vectflot 4 # Reserva 16 bytes (4 floats)
+```
+
+---
+
+r_puntero64
+    cargar_vector [r_puntero64], xmm0_128
+    
+    cargar_direccion cero, r_base64
+    cargar_vector [r_base64], xmm1_128
+    
+    # Paso 2: Crear máscara donde entrada < 0
+    # xmm1_128 = máscara: [0xFFFFFFFF, 0x00000000, 0xFFFFFFFF, 0x00000000]
+    comparar_vectmen xmm0_128, xmm1_128
+    
+    # Paso 3: Invertir máscara (XOR con todos 1s)
+    # xmm1_128 = [0x00000000, 0xFFFFFFFF, 0x00000000, 0xFFFFFFFF]
+    cargar_direccion todos_unos, r_base64
+    cargar_vector [r_base64], xmm2_128
+    o_exclusivo_vector xmm1_128, xmm2_128
+    
+    # Paso 4: Aplicar máscara con AND
+    # xmm0_128 = [0.0, 2.0, 0.0, 4.0] ← ¡ReLU!
+    y_vector xmm1_128, xmm0_128
+    
+    # Paso 5: Guardar resultado
+    cargar_direccion salida, r_puntero64
+    guardar_vector xmm0_128, [r_puntero64]
+    
+    terminar
+
+Resultado en memoria: [0.0, 2.0, 0.0, 4.0] (los negativos se han puesto a cero).
