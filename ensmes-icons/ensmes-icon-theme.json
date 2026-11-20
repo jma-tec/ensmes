@@ -9,7 +9,8 @@
     "_txt": { "iconPath": "./icons/txt.svg" },
     "_sh": { "iconPath": "./icons/sh.svg" },
     "_svg": { "iconPath": "./icons/vector.svg" },
-    "_jma": { "iconPath": "./icons/binario.svg" }
+    "_jma": { "iconPath": "./icons/binario.svg" },
+    "_neux": {"iconPath": "./icons/neux.svg"}
   },
   "fileExtensions": {
     "ensmes": "_ensmes",
@@ -21,6 +22,7 @@
     "txt": "_txt",
     "sh": "_sh",
     "svg": "_svg",
-    "jma": "_jma"
+    "jma": "_jma",
+    "neux": "_neux"
   }
 }

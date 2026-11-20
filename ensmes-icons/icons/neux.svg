@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <defs>
+    <!-- Gradiente más eléctrico: Azul profundo a Violeta neón -->
+    <linearGradient id="neuraxGlow" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#4f46e5;stop-opacity:1" /> <!-- Índigo -->
+      <stop offset="100%" style="stop-color:#d946ef;stop-opacity:1" /> <!-- Fucsia neón -->
+    </linearGradient>
+    
+    <!-- Efecto de brillo para el núcleo -->
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="2.5" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  
+  <!-- Conexiones neuronales (Líneas base) -->
+  <g stroke="#312e81" stroke-width="3" stroke-linecap="round" opacity="0.5">
+    <line x1="64" y1="64" x2="32" y2="32" />
+    <line x1="64" y1="64" x2="96" y2="32" />
+    <line x1="64" y1="64" x2="64" y2="104" />
+    <line x1="32" y1="32" x2="96" y2="32" />
+  </g>
+
+  <!-- PULSOS DE ENERGÍA (Viajando por las conexiones) -->
+  <g fill="url(#neuraxGlow)" filter="url(#glow)">
+    <circle cx="48" cy="48" r="3" /> <!-- Pulso arriba-izquierda -->
+    <circle cx="80" cy="48" r="3" /> <!-- Pulso arriba-derecha -->
+    <circle cx="64" cy="84" r="3" /> <!-- Pulso abajo -->
+  </g>
+
+  <!-- Nodos Satélite (Agentes) -->
+  <g fill="#1e1b4b" stroke="url(#neuraxGlow)" stroke-width="2.5">
+    <circle cx="32" cy="32" r="7" />
+    <circle cx="96" cy="32" r="7" />
+    <circle cx="64" cy="104" r="7" />
+  </g>
+
+  <!-- NODO CENTRAL (El Cerebro Neurax) -->
+  <!-- Anillo exterior con brillo -->
+  <circle cx="64" cy="64" r="13" fill="#0f172a" stroke="url(#neuraxGlow)" stroke-width="3" filter="url(#glow)" />
+  <!-- Núcleo interno brillante -->
+  <circle cx="64" cy="64" r="6" fill="url(#neuraxGlow)" />
+</svg>
