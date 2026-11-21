@@ -175,10 +175,12 @@ void ensamblador_archivo(FILE *archivo_lectura, FILE *archivo_escritura)
     int es_64 ;
     int en_seccion_datos ;
     char linea[1500] ;      // Buffer para leer cada línea
+    char linea_original[1500];
     char *token ;           // Declarar puntero para instrucción sin operando
     char *token_registros ; // Declarar puntero para los registros
     char *token_numero ;    // Declarar puntero para los inmediatos
-    
+    char *token_tercero;
+
     long offset_codigo = -1;
     long offset_datos = -1;
     long offset_constantes = -1;
@@ -191,11 +193,15 @@ void ensamblador_archivo(FILE *archivo_lectura, FILE *archivo_escritura)
     while(fgets(linea, 1500, archivo_lectura) != NULL) {
         es_64 = 0; // <--- VITAL: Reiniciar la bandera en cada línea
         
+        strcpy(linea_original, linea);   // guarda la línea INTACTA (con comas/espacios)
+
         // 1. Tokenización de la línea
         // Cortamos el texto en espacios, comas y saltos de linea
         token = strtok(linea, " ,\n#") ;
         token_numero = strtok(NULL, " ,\n") ;
         token_registros = strtok(NULL, " ,\n") ;
+        token_tercero = strtok(NULL, " ,\t") ;
+        if (token_tercero == NULL) token_tercero = ""; // Seguridad por si acaso
         
         if (token == NULL) {
             continue; // Si la línea está vacía, saltamos a la siguiente
@@ -291,29 +297,25 @@ void ensamblador_archivo(FILE *archivo_lectura, FILE *archivo_escritura)
             continue;
         }
         else if (strcmp(token, "definir_flotante") == 0) {
-            // Convierte el string a float de 32 bits (IEEE 754)
             float valor = strtof(token_numero, NULL);
             fwrite(&valor, sizeof(float), 1, archivo_escritura);
             continue;
         }
         else if (strcmp(token, "definir_vectflot") == 0) {
-            
-            // Encontrar dónde empieza token_numero dentro de linea
-            char *pos = strstr(linea, token_numero);
+            // Escribir el PRIMER float (token_numero)
+            float primer_valor = strtof(token_numero, NULL);
+            fwrite(&primer_valor, sizeof(float), 1, archivo_escritura);
+    
+            // Escribir los siguientes floats
+            char *pos = strstr(linea_original, token_numero);
             if (pos != NULL) {
-                pos += strlen(token_numero); // Saltar el primer número
-                
-                // Ahora parsear manualmente el resto de la línea buscando floats
+                pos += strlen(token_numero);
                 while (*pos != '\0' && *pos != '\n') {
-                    // Saltar espacios, comas, tabs
                     while (*pos == ' ' || *pos == ',' || *pos == '\t') pos++;
                     if (*pos == '\0' || *pos == '\n' || *pos == '#') break;
-                    
-                    // Convertir float desde esta posición
                     char *endptr;
                     float valor = strtof(pos, &endptr);
-                    if (endptr == pos) break; // No se pudo convertir
-                    
+                    if (endptr == pos) break;
                     fwrite(&valor, sizeof(float), 1, archivo_escritura);
                     pos = endptr;
                 }
@@ -3539,6 +3541,28 @@ else if(strcmp(token, "copiar_vector") == 0) {
         }
     }
     
+    else if(strcmp(token, "mezclar_vector") == 0) {
+        int id_origen = obtener_id_registro_vectorial(token_numero);
+        int id_destino = obtener_id_registro_vectorial(token_registros);
+    
+        // El tercer token YA viene limpio gracias al parser principal
+        int patron = atoi(token_tercero); 
+
+        if (id_origen != -1 && id_destino != -1) {
+            int rex = 0x40;
+            if (id_destino >= 8) rex |= 0x04; // REX.R
+            if (id_origen >= 8) rex |= 0x01;  // REX.B
+
+            int modrm = 0xC0 | ((id_destino & 7) << 3) | (id_origen & 7);
+
+            if (rex != 0x40) fputc(rex, archivo_escritura);
+            fputc(0x0F, archivo_escritura); // Escape SSE
+            fputc(0xC6, archivo_escritura); // Opcode SHUFPS
+            fputc(modrm, archivo_escritura);
+            fputc(patron & 0xFF, archivo_escritura); // Byte inmediato
+        }
+    }
+
     else if(strcmp(token, "guardar_vector") == 0) {
         // Sintaxis: guardar_vector xmm_origen, [destino_memoria]
         int id_origen = obtener_id_registro_vectorial(token_numero);

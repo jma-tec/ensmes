@@ -1433,30 +1433,44 @@ reservar_vectflot 4 # Reserva 16 bytes (4 floats)
 
 ---
 
-r_puntero64
-    cargar_vector [r_puntero64], xmm0_128
-    
-    cargar_direccion cero, r_base64
-    cargar_vector [r_base64], xmm1_128
-    
-    # Paso 2: Crear máscara donde entrada < 0
-    # xmm1_128 = máscara: [0xFFFFFFFF, 0x00000000, 0xFFFFFFFF, 0x00000000]
-    comparar_vectmen xmm0_128, xmm1_128
-    
-    # Paso 3: Invertir máscara (XOR con todos 1s)
-    # xmm1_128 = [0x00000000, 0xFFFFFFFF, 0x00000000, 0xFFFFFFFF]
-    cargar_direccion todos_unos, r_base64
-    cargar_vector [r_base64], xmm2_128
-    o_exclusivo_vector xmm1_128, xmm2_128
-    
-    # Paso 4: Aplicar máscara con AND
-    # xmm0_128 = [0.0, 2.0, 0.0, 4.0] ← ¡ReLU!
-    y_vector xmm1_128, xmm0_128
-    
-    # Paso 5: Guardar resultado
-    cargar_direccion salida, r_puntero64
-    guardar_vector xmm0_128, [r_puntero64]
-    
-    terminar
+### 53. mezclar_vector (SHUFPS)
 
-Resultado en memoria: [0.0, 2.0, 0.0, 4.0] (los negativos se han puesto a cero).
+**Operando:** `mezclar_vector xmm_origen, xmm_destino, patron_inmediato`
+
+**Descripción:** Reordena los 4 floats empaquetados del registro destino según un patrón de 8 bits (2 bits por float). Permite duplicar, intercambiar o seleccionar floats específicos dentro del mismo registro o entre dos registros. Es fundamental para reducciones horizontales (sumar los 4 floats de un registro entre sí) y para reorganizar tensores antes de operaciones SIMD.
+
+**Opcode base:** `0F C6 /r ib` (SHUFPS xmm, xmm/m128, imm8)
+
+**Ejemplo de intercambio de pares:** `mezclar_vector xmm0_128, xmm0_128, 177` -> 0F C6 C0 B1
+
+Resultado: si xmm0 = [1.0, 2.0, 3.0, 4.0], tras ejecutar queda [2.0, 1.0, 4.0, 3.0].
+
+**Ejemplo de duplicación del primer float:** `mezclar_vector xmm0_128, xmm0_128, 0` -> 0F C6 C0 00
+
+Resultado: xmm0 = [1.0, 1.0, 1.0, 1.0].
+
+**[Nota Técnica sobre el patrón de 8 bits]:**
+El byte inmediato se divide en 4 campos de 2 bits cada uno:
+- Bits 0-1: qué float va a la posición 0 (00=origen[0], 01=origen[1], 10=origen[2], 11=origen[3])
+- Bits 2-3: qué float va a la posición 1
+- Bits 4-5: qué float va a la posición 2 (del registro origen)
+- Bits 6-7: qué float va a la posición 3 (del registro origen)
+
+**Patrón 177 (0xB1 = 10110001):**
+- Posición 0 ← origen[1] (bits 01)
+- Posición 1 ← origen[0] (bits 00)
+- Posición 2 ← origen[3] (bits 11)
+- Posición 3 ← origen[2] (bits 10)
+
+**[Nota Técnica sobre Reducción Horizontal]:**
+Para sumar los 4 floats de un registro XMM (necesario para producto punto), se usan dos `mezclar_vector` seguidos de `sumar_vector`:
+xmm0 = [A, B, C, D]
+
+```ensmes
+mezclar_vector xmm0, xmm1, 0xB1 # xmm1 = [B, A, D, C]
+sumar_vector xmm1, xmm0 # xmm0 = [A+B, A+B, C+D, C+D]
+mezclar_vector xmm0, xmm2, 0x4E # xmm2 = [C+D, C+D, A+B, A+B+C+D]
+sumar_vector xmm2, xmm0 # xmm0[0] = A+B+C+D ← producto punto escalar
+```
+
+---

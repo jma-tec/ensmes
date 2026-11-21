@@ -1,0 +1,33 @@
+.datos
+    vec_a:
+        definir_vectflot 1.0, 2.0, 3.0, 4.0
+    resultado:
+        reservar_vectflot 4
+    mensaje_ok:
+        definir_byte 79
+        definir_byte 75
+        definir_byte 10
+
+.codigo
+inicio:
+    cargar_direccion vec_a, r_puntero64
+    cargar_vector [r_puntero64], xmm0_128
+    mezclar_vector xmm0_128, xmm0_128, 177
+
+    cargar_direccion resultado, r_base64
+    guardar_vector xmm0_128, [r_base64]
+
+    # ¡IMPRIMIR RESULTADO! (16 bytes en crudo)
+    cargar_direccion resultado, r_puntero64
+    copiar 16, r_datos64       # 16 bytes (4 floats)
+    copiar 1, r_destino64      # stdout
+    copiar 1, r_acumulador64   # syscall write
+    interrumpir
+
+    cargar_direccion mensaje_ok, r_puntero64
+    copiar 3, r_datos64
+    copiar 1, r_destino64
+    copiar 1, r_acumulador64
+    interrumpir
+
+    terminar
