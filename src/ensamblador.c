@@ -1,5 +1,6 @@
 // ENSAMBLADOR MODULAR ESPAÑOL x86_64
 #include <stdio.h>
+#include <stdint.h>
 #include <string.h>
 #include <stdlib.h>
 #include <ctype.h>
@@ -9,6 +10,9 @@
 #define MAX_ETIQUETAS 100
 #define MAX_SALTOS_PENDIENTES 100
 #define TAMANO_CABECERA 128 // 4+4+8+8*8+56 = 128 bytes
+#define PAGINA 4096
+#define MAX_RELOCACIONES 1024
+
 
 // Alinea la posición del archivo a múltiplo de tamaño_pagina rellenando con ceros
 void alinear_seccion(FILE *archivo_escritura, long tamano_pagina) {
@@ -22,22 +26,30 @@ void alinear_seccion(FILE *archivo_escritura, long tamano_pagina) {
     }
 }
 
-// CABECERA JMA v2 (128 bytes exactos)
 typedef struct {
-    char firma[4];              // 4 bytes: "JMA\0"
-    int version;                // 4 bytes: 2
-    long long entry_point;      // 8 bytes: Punto de entrada
-    long offset_codigo;         // 8 bytes
-    long tamano_codigo;         // 8 bytes
-    long offset_datos;          // 8 bytes
-    long tamano_datos;          // 8 bytes
-    long offset_constantes;     // 8 bytes
-    long tamano_constantes;     // 8 bytes
-    long tamano_reservado;      // 8 bytes: BSS
-    long tamano_heap_inicial;   // 8 bytes: Tamaño inicial del heap dinámico
-    char relleno[48];           // 48 bytes: Para llegar a 128 bytes totales
+    char firma[4];
+    int version;              // Cambia a 3
+    long long entry_point;
+    long offset_codigo;
+    long tamano_codigo;
+    long offset_datos;
+    long tamano_datos;
+    long offset_constantes;
+    long tamano_constantes;
+    long tamano_reservado;
+    long tamano_heap_inicial;
+    long offset_relocalizaciones;  // NUEVO
+    long tamano_relocalizaciones;  // NUEVO
+    char relleno[32];         // Reducido de 48 a 32 bytes
 } CabeceraJMA;
 
+
+
+typedef struct {
+    uint32_t offset_en_codigo;   // Dónde está el campo de 4 bytes a parchear
+    uint8_t  tipo_seccion;        // 0=datos, 1=constantes, 2=reservado
+    uint32_t offset_en_seccion;  // Offset del destino dentro de su sección
+} Relocacion;
 
 int obtener_tamano_registro(const char *nombre) {
     if (strstr(nombre, "64") != NULL) return 64;
@@ -129,6 +141,7 @@ int obtener_id_registro(const char *nombre) {
 }
 
 int obtener_id_registro_vectorial(const char *nombre) {
+    // REGISTROS VECTORIALES DE 128 BITS
     if (strcmp(nombre, "xmm0_128") == 0) return 0;
     if (strcmp(nombre, "xmm1_128") == 0) return 1;
     if (strcmp(nombre, "xmm2_128") == 0) return 2;
@@ -145,6 +158,23 @@ int obtener_id_registro_vectorial(const char *nombre) {
     if (strcmp(nombre, "xmm13_128") == 0) return 13;
     if (strcmp(nombre, "xmm14_128") == 0) return 14;
     if (strcmp(nombre, "xmm15_128") == 0) return 15;
+    // REGISTROS VECTORIALES DE 256 BITS
+    if (strcmp(nombre, "ymm0_256") == 0) return 0;
+    if (strcmp(nombre, "ymm1_256") == 0) return 1;
+    if (strcmp(nombre, "ymm2_256") == 0) return 2;
+    if (strcmp(nombre, "ymm3_256") == 0) return 3;
+    if (strcmp(nombre, "ymm4_256") == 0) return 4;
+    if (strcmp(nombre, "ymm5_256") == 0) return 5;
+    if (strcmp(nombre, "ymm6_256") == 0) return 6;
+    if (strcmp(nombre, "ymm7_256") == 0) return 7;
+    if (strcmp(nombre, "ymm8_256") == 0) return 8;
+    if (strcmp(nombre, "ymm9_256") == 0) return 9;
+    if (strcmp(nombre, "ymm10_256") == 0) return 10;
+    if (strcmp(nombre, "ymm11_256") == 0) return 11;
+    if (strcmp(nombre, "ymm12_256") == 0) return 12;
+    if (strcmp(nombre, "ymm13_256") == 0) return 13;
+    if (strcmp(nombre, "ymm14_256") == 0) return 14;
+    if (strcmp(nombre, "ymm15_256") == 0) return 15;
     return -1;
 }
 
@@ -159,6 +189,7 @@ int num_saltos_pendientes = 0;
 typedef struct {
     char nombre[50];
     long posicion;
+    int seccion;
 } Etiqueta;
 
 Etiqueta tabla_etiquetas[MAX_ETIQUETAS];
@@ -172,15 +203,19 @@ void imprimir_numero(int num, FILE *archivo_escritura)
 
 void ensamblador_archivo(FILE *archivo_lectura, FILE *archivo_escritura) 
 {
+    Relocacion tabla_reloc[MAX_RELOCACIONES];
+    int num_relocaciones = 0;
     int es_64 ;
+    int seccion_actual = 3; // Por defecto: codigo
     int en_seccion_datos ;
+    int heap_ptr_inyectado = 0;
     char linea[1500] ;      // Buffer para leer cada línea
     char linea_original[1500];
     char *token ;           // Declarar puntero para instrucción sin operando
     char *token_registros ; // Declarar puntero para los registros
     char *token_numero ;    // Declarar puntero para los inmediatos
     char *token_tercero;
-
+    long offset_virtual_reservado = 0; // Para rastrear etiquetas en .reservado sin escribir ceros
     long offset_codigo = -1;
     long offset_datos = -1;
     long offset_constantes = -1;
@@ -207,74 +242,121 @@ void ensamblador_archivo(FILE *archivo_lectura, FILE *archivo_escritura)
             continue; // Si la línea está vacía, saltamos a la siguiente
         }
 
-        // Si el token termina en ':', es una etiqueta
-        if (token != NULL && token[strlen(token) - 1] == ':') {
-            // Quitamos los dos puntos del final
-            token[strlen(token) - 1] = '\0';
-            
-            // 1. Guardamos la etiqueta y su posición (como ya hacía)
-            if (num_etiquetas < MAX_ETIQUETAS) {
-                strcpy(tabla_etiquetas[num_etiquetas].nombre, token);
-                fflush(archivo_escritura);
-                tabla_etiquetas[num_etiquetas].posicion = ftell(archivo_escritura);
-                num_etiquetas++;
-            }
-            
-            // 2. RESOLVER SALTOS PENDIENTES
-            // Si habíamos intentado saltar a esta etiqueta antes de conocerla,
-            // ahora que sabemos dónde está, rellenamos el hueco.
-            for (int i = 0; i < num_saltos_pendientes; i++) {
-                if (saltos_pendientes[i].posicion_hueco != -1 && 
-                    strcmp(saltos_pendientes[i].nombre_etiqueta, token) == 0) {
-                    
-                    // Calculamos la distancia
-                    long pos_instruccion_final = saltos_pendientes[i].posicion_hueco + 4;
-                    int distancia = (int)(ftell(archivo_escritura) - pos_instruccion_final);
-                    
-                    // Nos movemos al hueco del archivo binario
-                    fseek(archivo_escritura, saltos_pendientes[i].posicion_hueco, SEEK_SET); 
-                    // Escribimos la distancia real
-                    fwrite(&distancia, sizeof(int), 1, archivo_escritura);
-                    // Volvemos al final del archivo para seguir ensamblando
-                    fseek(archivo_escritura, 0, SEEK_END);
-                    
-                    // Marcamos este salto como resuelto para que no se vuelva a procesar
-                    saltos_pendientes[i].posicion_hueco = -1; 
-                }
-            }
-            
-            continue; // Pasamos a la siguiente línea
+if (token != NULL && token[strlen(token) - 1] == ':') {
+    token[strlen(token) - 1] = '\0';
+
+    // 1. Guardamos la etiqueta con su sección y posición
+    if (num_etiquetas < MAX_ETIQUETAS) {
+        strcpy(tabla_etiquetas[num_etiquetas].nombre, token);
+        tabla_etiquetas[num_etiquetas].seccion = seccion_actual;
+        if (seccion_actual == 2) {
+            // .reservado: posición = offset virtual (no se escribe al disco)
+            tabla_etiquetas[num_etiquetas].posicion = offset_virtual_reservado;
+        } else {
+            // .datos/.constantes/.codigo: posición = offset absoluto en archivo
+            fflush(archivo_escritura);
+            tabla_etiquetas[num_etiquetas].posicion = ftell(archivo_escritura);
         }
+        num_etiquetas++;
+    }
+
+    // 2. RESOLVER SALTOS PENDIENTES
+    for (int i = 0; i < num_saltos_pendientes; i++) {
+        if (saltos_pendientes[i].posicion_hueco != -1 &&
+            strcmp(saltos_pendientes[i].nombre_etiqueta, token) == 0) {
+
+            int seccion_destino = tabla_etiquetas[num_etiquetas - 1].seccion;
+            long posicion_destino = tabla_etiquetas[num_etiquetas - 1].posicion;
+
+            // Convertir posición absoluta a offset RELATIVO a la sección destino
+            long offset_en_seccion;
+            if (seccion_destino == 0)      offset_en_seccion = posicion_destino - offset_datos;
+            else if (seccion_destino == 1) offset_en_seccion = posicion_destino - offset_constantes;
+            else if (seccion_destino == 2) offset_en_seccion = posicion_destino; // ya es virtual
+            else                           offset_en_seccion = 0; // codigo, no se usa
+
+            fseek(archivo_escritura, saltos_pendientes[i].posicion_hueco, SEEK_SET);
+
+            if (seccion_destino != 3) {
+                // Referencia cruzada: registrar relocalización y escribir 0
+                if (num_relocaciones < MAX_RELOCACIONES) {
+                    tabla_reloc[num_relocaciones].offset_en_codigo = saltos_pendientes[i].posicion_hueco - offset_codigo;
+                    tabla_reloc[num_relocaciones].tipo_seccion = seccion_destino;
+                    tabla_reloc[num_relocaciones].offset_en_seccion = offset_en_seccion;
+                    num_relocaciones++;
+                }
+                int cero = 0;
+                fwrite(&cero, sizeof(int), 1, archivo_escritura);
+            } else {
+                // Misma sección (.codigo): distancia RIP normal
+                long pos_instruccion_final = saltos_pendientes[i].posicion_hueco + 4;
+                int distancia = (int)(posicion_destino - pos_instruccion_final);
+                fwrite(&distancia, sizeof(int), 1, archivo_escritura);
+            }
+
+            fseek(archivo_escritura, 0, SEEK_END);
+            saltos_pendientes[i].posicion_hueco = -1;
+        }
+    }
+
+    continue;
+}
 
         
-        // 3. GESTIÓN DE SECCIONES Y DATOS
-        if (strcmp(token, ".datos") == 0) {
-            alinear_seccion(archivo_escritura, 4096);  // <-- AÑADIR ESTA LÍNEA
-            en_seccion_datos = 1;
-            if(offset_datos == -1){
-                offset_datos = ftell(archivo_escritura);
-            }
-            continue;
+
+if (strcmp(token, ".datos") == 0) {
+    seccion_actual = 0;
+    en_seccion_datos = 1;
+    if (offset_datos == -1) offset_datos = ftell(archivo_escritura);
+    continue;
+}
+else if (strcmp(token, ".constantes") == 0) {
+    if (en_seccion_datos && !heap_ptr_inyectado) {
+        if (num_etiquetas < MAX_ETIQUETAS) {
+            strcpy(tabla_etiquetas[num_etiquetas].nombre, "__heap_ptr__");
+            tabla_etiquetas[num_etiquetas].posicion = ftell(archivo_escritura);
+            tabla_etiquetas[num_etiquetas].seccion = 0; // Es parte de datos
+            num_etiquetas++;
         }
-        else if (strcmp(token, ".codigo") == 0) {
-            alinear_seccion(archivo_escritura, 4096);  // <-- AÑADIR ESTA LÍNEA
-            en_seccion_datos = 0;
-            if(offset_codigo == -1) {
-            offset_codigo = ftell(archivo_escritura);
-            }
-            continue;
+        for (int i = 0; i < 8; i++) fputc(0x00, archivo_escritura);
+        heap_ptr_inyectado = 1;
+    }
+    seccion_actual = 1;
+    en_seccion_datos = 1;
+    if (offset_constantes == -1) offset_constantes = ftell(archivo_escritura);
+    continue;
+}
+else if (strcmp(token, ".reservado") == 0) {
+    if (en_seccion_datos && !heap_ptr_inyectado) {
+        if (num_etiquetas < MAX_ETIQUETAS) {
+            strcpy(tabla_etiquetas[num_etiquetas].nombre, "__heap_ptr__");
+            tabla_etiquetas[num_etiquetas].posicion = ftell(archivo_escritura);
+            tabla_etiquetas[num_etiquetas].seccion = 0;
+            num_etiquetas++;
         }
-        else if (strcmp(token, ".constantes") == 0) {
-            alinear_seccion(archivo_escritura, 4096);  // <-- AÑADIR ESTA LÍNEA
-            en_seccion_datos = 1;
-            if(offset_constantes == -1){ offset_constantes = ftell(archivo_escritura); }
-            continue;
+        for (int i = 0; i < 8; i++) fputc(0x00, archivo_escritura);
+        heap_ptr_inyectado = 1;
+    }
+    seccion_actual = 2; // RESERVADO
+    en_seccion_datos = 1;
+    continue;
+}
+else if (strcmp(token, ".codigo") == 0) {
+    if (en_seccion_datos && !heap_ptr_inyectado) {
+        if (num_etiquetas < MAX_ETIQUETAS) {
+            strcpy(tabla_etiquetas[num_etiquetas].nombre, "__heap_ptr__");
+            tabla_etiquetas[num_etiquetas].posicion = ftell(archivo_escritura);
+            tabla_etiquetas[num_etiquetas].seccion = 0;
+            num_etiquetas++;
         }
-        else if (strcmp(token, ".reservado") == 0) {
-            alinear_seccion(archivo_escritura, 4096);  // <-- AÑADIR ESTA LÍNEA
-            en_seccion_datos = 1;
-            continue;
-        }
+        for (int i = 0; i < 8; i++) fputc(0x00, archivo_escritura);
+        heap_ptr_inyectado = 1;
+    }
+    seccion_actual = 3; // CODIGO
+    en_seccion_datos = 0;
+    if (offset_codigo == -1) offset_codigo = ftell(archivo_escritura);
+    continue;
+}
         // DIRECTIVAS DE DATOS
         else if (strcmp(token, "definir_byte") == 0) {
             int valor = atoi(token_numero);
@@ -322,43 +404,69 @@ void ensamblador_archivo(FILE *archivo_lectura, FILE *archivo_escritura)
             }
             continue;
         }
-        else if (strcmp(token, "reservar_byte") == 0) {
-            int cantidad = atoi(token_numero);
-            for (int i = 0; i < cantidad; i++) { fputc(0x00, archivo_escritura); }
-            tamano_reservado += cantidad;
+        else if (strcmp(token, "definir_vectflot256") == 0) {
+            // Escribir el PRIMER float (token_numero)
+            float primer_valor = strtof(token_numero, NULL);
+            fwrite(&primer_valor, sizeof(float), 1, archivo_escritura);
+    
+            // Escribir los siguientes 7 floats
+            char *pos = strstr(linea_original, token_numero);
+            if (pos != NULL) {
+                    pos += strlen(token_numero);
+                while (*pos != '\0' && *pos != '\n') {
+                    while (*pos == ' ' || *pos == ',' || *pos == '\t') pos++;
+                    if (*pos == '\0' || *pos == '\n' || *pos == '#') break;
+                    char *endptr;
+                    float valor = strtof(pos, &endptr);
+                    if (endptr == pos) break;
+                    fwrite(&valor, sizeof(float), 1, archivo_escritura);
+                    pos = endptr;
+                }
+            }
             continue;
         }
-        else if (strcmp(token, "reservar_palabra") == 0) {
-            int cantidad = atoi(token_numero);
-            for (int i = 0; i < cantidad * 2; i++) { fputc(0x00, archivo_escritura); }
-            tamano_reservado += cantidad * 2;
-            continue;
-        }
-        else if (strcmp(token, "reservar_doble") == 0) {
-            int cantidad = atoi(token_numero);
-            for (int i = 0; i < cantidad * 4; i++) { fputc(0x00, archivo_escritura); }
-            tamano_reservado += cantidad * 4;
-            continue;
-        }
-        else if (strcmp(token, "reservar_cuadruple") == 0) {
-            int cantidad = atoi(token_numero);
-            for (int i = 0; i < cantidad * 8; i++) { fputc(0x00, archivo_escritura); }
-            tamano_reservado += cantidad * 8;
-            continue;
-        }
-        else if (strcmp(token, "reservar_flotante") == 0) {
-            // Reserva espacio para N floats (4 bytes cada uno)
-            int cantidad = atoi(token_numero);
-            for (int i = 0; i < cantidad * 4; i++) { fputc(0x00, archivo_escritura); }
-            tamano_reservado += cantidad * 4;
-            continue;
-        }
-        else if (strcmp(token, "reservar_vectflot") == 0) {
-            int cantidad = atoi(token_numero);
-            for (int i = 0; i < cantidad * 4; i++) { fputc(0x00, archivo_escritura); }
-            tamano_reservado += cantidad * 4;
-            continue;
-        }
+else if (strcmp(token, "reservar_byte") == 0) {
+    int cantidad = atoi(token_numero);
+    offset_virtual_reservado += cantidad;
+    tamano_reservado += cantidad;
+    continue;
+}
+else if (strcmp(token, "reservar_palabra") == 0) {
+    int cantidad = atoi(token_numero);
+    offset_virtual_reservado += cantidad * 2;
+    tamano_reservado += cantidad * 2;
+    continue;
+}
+else if (strcmp(token, "reservar_doble") == 0) {
+    int cantidad = atoi(token_numero);
+    offset_virtual_reservado += cantidad * 4;
+    tamano_reservado += cantidad * 4;
+    continue;
+}
+else if (strcmp(token, "reservar_cuadruple") == 0) {
+    int cantidad = atoi(token_numero);
+    offset_virtual_reservado += cantidad * 8;
+    tamano_reservado += cantidad * 8;
+    continue;
+}
+else if (strcmp(token, "reservar_flotante") == 0) {
+    int cantidad = atoi(token_numero);
+    offset_virtual_reservado += cantidad * 4;
+    tamano_reservado += cantidad * 4;
+    continue;
+}
+else if (strcmp(token, "reservar_vectflot") == 0) {
+    int cantidad = atoi(token_numero);
+    offset_virtual_reservado += cantidad * 4;
+    tamano_reservado += cantidad * 4;
+    continue;
+}
+else if (strcmp(token, "reservar_vectflot256") == 0) {
+    int cantidad = atoi(token_numero);
+    offset_virtual_reservado += cantidad * 4; // Nota: si son 8 floats, debería ser *32, ajusta según tu lógica
+    tamano_reservado += cantidad * 4;
+    continue;
+}
         // 4. INSTRUCCIONES
         if(strcmp(token, "pausa") == 0) {
             fputc(0x90, archivo_escritura) ;
@@ -611,68 +719,82 @@ void ensamblador_archivo(FILE *archivo_lectura, FILE *archivo_escritura)
                 fwrite(&hueco, sizeof(int), 1, archivo_escritura);
             }
         }
-        else if(strcmp(token, "cargar_direccion") == 0) {
-            long posicion_destino = -1;
-            for (int i = 0; i < num_etiquetas; i++) {
-                if (strcmp(tabla_etiquetas[i].nombre, token_numero) == 0) {
-                    posicion_destino = tabla_etiquetas[i].posicion;
-                    break;
-                }
-            }
-            
-            // Registros clásicos
-            if(strcmp(token_registros, "r_acumulador64") == 0) {
-                fputc(0x48, archivo_escritura); fputc(0x8D, archivo_escritura); fputc(0x05, archivo_escritura);
-            } else if(strcmp(token_registros, "r_base64") == 0) {
-                fputc(0x48, archivo_escritura); fputc(0x8D, archivo_escritura); fputc(0x1D, archivo_escritura);
-            } else if(strcmp(token_registros, "r_puntero64") == 0) {
-                fputc(0x48, archivo_escritura); fputc(0x8D, archivo_escritura); fputc(0x35, archivo_escritura);
-            } else if(strcmp(token_registros, "r_destino64") == 0) {
-                fputc(0x48, archivo_escritura); fputc(0x8D, archivo_escritura); fputc(0x3D, archivo_escritura);
-            }
-            else if(strcmp(token_registros, "r_contador64") == 0) {
-                fputc(0x48, archivo_escritura); fputc(0x8D, archivo_escritura); fputc(0x0D, archivo_escritura);
-            } else if(strcmp(token_registros, "r_datos64") == 0) {
-                fputc(0x48, archivo_escritura); fputc(0x8D, archivo_escritura); fputc(0x15, archivo_escritura);
-            }
-            // Registros Especiales
-            else if(strcmp(token_registros, "r8_64") == 0) {
-                fputc(0x4C, archivo_escritura); fputc(0x8D, archivo_escritura); fputc(0x05, archivo_escritura);
-            } else if(strcmp(token_registros, "r9_64") == 0) {
-                fputc(0x4C, archivo_escritura); fputc(0x8D, archivo_escritura); fputc(0x0D, archivo_escritura);
-            } else if(strcmp(token_registros, "r10_64") == 0) {
-                fputc(0x4C, archivo_escritura); fputc(0x8D, archivo_escritura); fputc(0x15, archivo_escritura);
-            } else if(strcmp(token_registros, "r11_64") == 0) {
-                fputc(0x4C, archivo_escritura); fputc(0x8D, archivo_escritura); fputc(0x1D, archivo_escritura);
-            } else if(strcmp(token_registros, "r12_64") == 0) {
-                fputc(0x4C, archivo_escritura); fputc(0x8D, archivo_escritura); fputc(0x25, archivo_escritura);
-            } else if(strcmp(token_registros, "r13_64") == 0) {
-                fputc(0x4C, archivo_escritura); fputc(0x8D, archivo_escritura); fputc(0x2D, archivo_escritura);
-            } else if(strcmp(token_registros, "r14_64") == 0) {
-                fputc(0x4C, archivo_escritura); fputc(0x8D, archivo_escritura); fputc(0x35, archivo_escritura); // <-- AQUÍ
-            } else if(strcmp(token_registros, "r15_64") == 0) {
-                fputc(0x4C, archivo_escritura); fputc(0x8D, archivo_escritura); fputc(0x3D, archivo_escritura);
-            } else {
-                continue; 
-            }
-            
-            if (posicion_destino != -1) {
-
-                 fflush(archivo_escritura);
-                long posicion_actual = ftell(archivo_escritura) + 4;
-                int distancia = (int)(posicion_destino - posicion_actual);
-                fwrite(&distancia, sizeof(int), 1, archivo_escritura);
-
-            } else {
-                if (num_saltos_pendientes < MAX_SALTOS_PENDIENTES) {
-                    strcpy(saltos_pendientes[num_saltos_pendientes].nombre_etiqueta, token_numero);
-                    saltos_pendientes[num_saltos_pendientes].posicion_hueco = ftell(archivo_escritura);
-                    num_saltos_pendientes++;
-                }
-                int hueco = 0;
-                fwrite(&hueco, sizeof(int), 1, archivo_escritura);
-            }
+else if(strcmp(token, "cargar_direccion") == 0) {
+    // 1. Buscar la etiqueta en la tabla para obtener su sección y posición
+    int idx_etiqueta = -1;
+    for (int i = 0; i < num_etiquetas; i++) {
+        if (strcmp(tabla_etiquetas[i].nombre, token_numero) == 0) {
+            idx_etiqueta = i;
+            break;
         }
+    }
+    
+    // 2. Determinar los 3 bytes del opcode del registro (exactamente como lo tenías)
+    unsigned char b1 = 0, b2 = 0, b3 = 0;
+    if(strcmp(token_registros, "r_acumulador64") == 0)      { b1=0x48; b2=0x8D; b3=0x05; }
+    else if(strcmp(token_registros, "r_base64") == 0)       { b1=0x48; b2=0x8D; b3=0x1D; }
+    else if(strcmp(token_registros, "r_puntero64") == 0)    { b1=0x48; b2=0x8D; b3=0x35; }
+    else if(strcmp(token_registros, "r_destino64") == 0)    { b1=0x48; b2=0x8D; b3=0x3D; }
+    else if(strcmp(token_registros, "r_contador64") == 0)   { b1=0x48; b2=0x8D; b3=0x0D; }
+    else if(strcmp(token_registros, "r_datos64") == 0)      { b1=0x48; b2=0x8D; b3=0x15; }
+    else if(strcmp(token_registros, "r8_64") == 0)          { b1=0x4C; b2=0x8D; b3=0x05; }
+    else if(strcmp(token_registros, "r9_64") == 0)          { b1=0x4C; b2=0x8D; b3=0x0D; }
+    else if(strcmp(token_registros, "r10_64") == 0)         { b1=0x4C; b2=0x8D; b3=0x15; }
+    else if(strcmp(token_registros, "r11_64") == 0)         { b1=0x4C; b2=0x8D; b3=0x1D; }
+    else if(strcmp(token_registros, "r12_64") == 0)         { b1=0x4C; b2=0x8D; b3=0x25; }
+    else if(strcmp(token_registros, "r13_64") == 0)         { b1=0x4C; b2=0x8D; b3=0x2D; }
+    else if(strcmp(token_registros, "r14_64") == 0)         { b1=0x4C; b2=0x8D; b3=0x35; }
+    else if(strcmp(token_registros, "r15_64") == 0)         { b1=0x4C; b2=0x8D; b3=0x3D; }
+    else { continue; }
+
+    fputc(b1, archivo_escritura);
+    fputc(b2, archivo_escritura);
+    fputc(b3, archivo_escritura);
+
+    // 3. Lógica de Relocalización vs Distancia Normal
+    if (idx_etiqueta != -1) {
+        int seccion_destino = tabla_etiquetas[idx_etiqueta].seccion;
+        long posicion_destino = tabla_etiquetas[idx_etiqueta].posicion;
+
+        // Calcular offset RELATIVO a la sección destino
+        long offset_en_seccion = 0;
+        if (seccion_destino == 0) {
+            offset_en_seccion = posicion_destino - offset_datos;
+        } else if (seccion_destino == 1) {
+            offset_en_seccion = posicion_destino - offset_constantes;
+        } else if (seccion_destino == 2) {
+            offset_en_seccion = posicion_destino; // Ya es offset virtual en .reservado
+        }
+
+        if (seccion_destino != 3) { // Si NO es código (3), crear relocalización
+            if (num_relocaciones < MAX_RELOCACIONES) {
+                tabla_reloc[num_relocaciones].offset_en_codigo = ftell(archivo_escritura) - offset_codigo;
+                tabla_reloc[num_relocaciones].tipo_seccion = seccion_destino;
+                tabla_reloc[num_relocaciones].offset_en_seccion = offset_en_seccion;
+                num_relocaciones++;
+            }
+            // Escribir 0 como placeholder (el loader lo calculará en tiempo de ejecución)
+            int cero = 0;
+            fwrite(&cero, sizeof(int), 1, archivo_escritura);
+        } else {
+            // MISMA SECCIÓN (.codigo): Calcular distancia RIP-relative normal
+            fflush(archivo_escritura);
+            long posicion_actual = ftell(archivo_escritura) + 4; // +4 por el int que vamos a escribir
+            int distancia = (int)(posicion_destino - posicion_actual);
+            fwrite(&distancia, sizeof(int), 1, archivo_escritura);
+        }
+    } else {
+        // ETIQUETA NO DEFINIDA AÚN (Forward reference)
+        // Se resolverá en el bucle de saltos_pendientes al final
+        if (num_saltos_pendientes < MAX_SALTOS_PENDIENTES) {
+            strcpy(saltos_pendientes[num_saltos_pendientes].nombre_etiqueta, token_numero);
+            saltos_pendientes[num_saltos_pendientes].posicion_hueco = ftell(archivo_escritura);
+            num_saltos_pendientes++;
+        }
+        int hueco = 0;
+        fwrite(&hueco, sizeof(int), 1, archivo_escritura);
+    }
+}
         else if(strcmp(token, "cargar") == 0) {
             char nombre_etiqueta[50];
             strcpy(nombre_etiqueta, token_numero);
@@ -3331,7 +3453,7 @@ void ensamblador_archivo(FILE *archivo_lectura, FILE *archivo_escritura)
                 fputc(0x41, archivo_escritura); fputc(0xF6, archivo_escritura); fputc(0xF7, archivo_escritura); // DIV R15B
             }
         }
-// INSTRUCCIONES Y REGISTROS VECTORIALES (128, 256 BITS)
+// INSTRUCCIONES Y REGISTROS VECTORIALES (128 BITS)
 else if(strcmp(token, "copiar_vector") == 0) {
     int id_destino = obtener_id_registro_vectorial(token_registros);
     
@@ -4075,6 +4197,158 @@ else if(strcmp(token, "dividir_vector") == 0) {
             fputc(0x04, archivo_escritura); // Inmediato: Distinto (NEQ)
         }
     }
+    // INSTRUCCIONES Y REGISTROS VECTORIALES (256 BITS)
+    else if(strcmp(token, "vsumar_vector") == 0) {
+    int id_origen = obtener_id_registro_vectorial(token_numero);
+    int id_destino = obtener_id_registro_vectorial(token_registros);
+    
+    if (id_origen != -1 && id_destino != -1) {
+        // Byte 1: VEX de 3 bytes
+        fputc(0xC4, archivo_escritura);
+        
+        // Byte 2: R, X, B invertidos + mapa 0F (00001)
+        int byte2 = 0xE1; // 1110 0001
+        if (id_destino >= 8) byte2 &= ~0x80; // R invertido
+        if (id_origen >= 8) byte2 &= ~0x40;  // B invertido
+        fputc(byte2, archivo_escritura);
+        
+        // Byte 3: W=0, vvvv=1111, L=1 (256 bits), pp=01 (66h)
+        fputc(0x7D, archivo_escritura); // 0111 1101
+        
+        // Opcode: ADDPS (58)
+        fputc(0x58, archivo_escritura);
+        
+        // ModR/M: registro-registro
+        int modrm = 0xC0 | ((id_destino & 7) << 3) | (id_origen & 7);
+        fputc(modrm, archivo_escritura);
+    }
+}
+else if(strcmp(token, "vcargar_vector") == 0) {
+    int id_destino = obtener_id_registro_vectorial(token_registros);
+    
+    if (id_destino != -1) {
+        char nombre_memoria[50];
+        strcpy(nombre_memoria, token_numero);
+        
+        if (nombre_memoria[0] == '[') {
+            memmove(nombre_memoria, nombre_memoria + 1, strlen(nombre_memoria));
+            nombre_memoria[strlen(nombre_memoria) - 1] = '\0';
+        }
+        
+        char base_reg[50] = "";
+        long offset = 0;
+        char *mas = strchr(nombre_memoria, '+');
+        char *menos = strchr(nombre_memoria, '-');
+        
+        if (mas != NULL) {
+            *mas = '\0'; strcpy(base_reg, nombre_memoria); offset = atoi(mas + 1);
+        } else if (menos != NULL) {
+            *menos = '\0'; strcpy(base_reg, nombre_memoria); offset = -atoi(menos + 1);
+        } else {
+            strcpy(base_reg, nombre_memoria);
+        }
+        
+        int id_base = obtener_id_registro(base_reg);
+        if (id_base != -1) {
+            // Byte 1: VEX 3 bytes
+            fputc(0xC4, archivo_escritura);
+            
+            // Byte 2: R invertido, X=0, B invertido, mapa 0F
+            int byte2 = 0xE1;
+            if (id_destino >= 8) byte2 &= ~0x80;
+            if (id_base >= 8) byte2 &= ~0x40;
+            fputc(byte2, archivo_escritura);
+            
+            // Byte 3: W=0, vvvv=1111, L=1 (256 bits), pp=00 (VMOVUPS)
+            fputc(0x7C, archivo_escritura);
+            
+            // Opcode: VMOVUPS (10)
+            fputc(0x10, archivo_escritura);
+            
+            // ModR/M
+            int mod = 0;
+            if (offset != 0) mod = 0x80;
+            else if ((id_base & 7) == 5) mod = 0x40;
+            
+            int rm = id_base & 7;
+            int reg = id_destino & 7;
+            
+            if (rm == 4) {
+                fputc(mod | (reg << 3) | 4, archivo_escritura);
+                fputc(0x24, archivo_escritura);
+            } else {
+                fputc(mod | (reg << 3) | rm, archivo_escritura);
+            }
+            
+            if (mod == 0x80) {
+                fwrite(&offset, sizeof(int), 1, archivo_escritura);
+            } else if (mod == 0x40) {
+                fputc(0x00, archivo_escritura);
+            }
+        }
+    }
+}
+else if(strcmp(token, "vguardar_vector") == 0) {
+    int id_origen = obtener_id_registro_vectorial(token_numero);
+    
+    if (id_origen != -1) {
+        char nombre_memoria[50];
+        strcpy(nombre_memoria, token_registros);
+        
+        if (nombre_memoria[0] == '[') {
+            memmove(nombre_memoria, nombre_memoria + 1, strlen(nombre_memoria));
+            nombre_memoria[strlen(nombre_memoria) - 1] = '\0';
+        }
+        
+        char base_reg[50] = "";
+        long offset = 0;
+        char *mas = strchr(nombre_memoria, '+');
+        char *menos = strchr(nombre_memoria, '-');
+        
+        if (mas != NULL) {
+            *mas = '\0'; strcpy(base_reg, nombre_memoria); offset = atoi(mas + 1);
+        } else if (menos != NULL) {
+            *menos = '\0'; strcpy(base_reg, nombre_memoria); offset = -atoi(menos + 1);
+        } else {
+            strcpy(base_reg, nombre_memoria);
+        }
+        
+        int id_base = obtener_id_registro(base_reg);
+        if (id_base != -1) {
+            fputc(0xC4, archivo_escritura);
+            
+            int byte2 = 0xE1;
+            if (id_origen >= 8) byte2 &= ~0x80;
+            if (id_base >= 8) byte2 &= ~0x40;
+            fputc(byte2, archivo_escritura);
+            
+            fputc(0x7C, archivo_escritura);
+            
+            // Opcode: VMOVUPS (11)
+            fputc(0x11, archivo_escritura);
+            
+            int mod = 0;
+            if (offset != 0) mod = 0x80;
+            else if ((id_base & 7) == 5) mod = 0x40;
+            
+            int rm = id_base & 7;
+            int reg = id_origen & 7;
+            
+            if (rm == 4) {
+                fputc(mod | (reg << 3) | 4, archivo_escritura);
+                fputc(0x24, archivo_escritura);
+            } else {
+                fputc(mod | (reg << 3) | rm, archivo_escritura);
+            }
+            
+            if (mod == 0x80) {
+                fwrite(&offset, sizeof(int), 1, archivo_escritura);
+            } else if (mod == 0x40) {
+                fputc(0x00, archivo_escritura);
+            }
+        }
+    }
+}
 } // <--- CIERRA EL WHILE
 
     // Calcular los tamaños reales
@@ -4114,7 +4388,12 @@ else if(strcmp(token, "dividir_vector") == 0) {
         tamano_codigo = posicion_final - offset_codigo;
     }
 
-    
+    // Guardar la tabla de relocalizaciones al final del archivo
+    long offset_reloc = ftell(archivo_escritura);
+    long tamano_reloc = num_relocaciones * sizeof(Relocacion);
+    if (num_relocaciones > 0) {
+        fwrite(tabla_reloc, sizeof(Relocacion), num_relocaciones, archivo_escritura);
+    }
 
     // 2. Volver al principio y escribir la cabecera JMA v2
     fseek(archivo_escritura, 0, SEEK_SET);
@@ -4123,7 +4402,7 @@ else if(strcmp(token, "dividir_vector") == 0) {
     memset(&cabecera_final, 0, sizeof(CabeceraJMA));
 
     memcpy(cabecera_final.firma, "JMA", 3);
-    cabecera_final.version = 2;                        // <-- AQUÍ ROMPEMOS COMPATIBILIDAD
+    cabecera_final.version = 3;                        // <-- AQUÍ ROMPEMOS COMPATIBILIDAD
     cabecera_final.entry_point = 0x400000;
     cabecera_final.offset_codigo = offset_codigo;
     cabecera_final.tamano_codigo = tamano_codigo;
@@ -4133,7 +4412,8 @@ else if(strcmp(token, "dividir_vector") == 0) {
     cabecera_final.tamano_constantes = tamano_constantes;
     cabecera_final.tamano_reservado = tamano_reservado;
     cabecera_final.tamano_heap_inicial = 1048576;      // 1MB de heap dinámico
-
+    cabecera_final.offset_relocalizaciones = offset_reloc;
+    cabecera_final.tamano_relocalizaciones = tamano_reloc;
     fwrite(&cabecera_final, sizeof(CabeceraJMA), 1, archivo_escritura);
 
     printf("Ensamblado exitoso. Formato JMA v2 generado.\n");
@@ -4141,109 +4421,130 @@ else if(strcmp(token, "dividir_vector") == 0) {
 } // <--- CIERRA LA FUNCIÓN
 
 
-
 void cargar_y_ejecutar(const char *nombre_archivo) {
     FILE *archivo = fopen(nombre_archivo, "rb");
-    if (archivo == NULL) {
-        printf("Error: No se pudo abrir %s\n", nombre_archivo);
-        return;
-    }
+    if (archivo == NULL) { printf("Error: No se pudo abrir %s\n", nombre_archivo); return; }
 
     CabeceraJMA cabecera;
     fread(&cabecera, sizeof(CabeceraJMA), 1, archivo);
 
     if (memcmp(cabecera.firma, "JMA", 3) != 0) {
-        printf("Error: El archivo no es un ejecutable JMA valido.\n");
-        fclose(archivo);
-        return;
+        printf("Error: El archivo no es un ejecutable JMA valido.\n"); fclose(archivo); return;
+    }
+    if (cabecera.version != 3) {
+        printf("Error: Formato de archivo antiguo (JMA v%d).\n", cabecera.version); fclose(archivo); return;
     }
 
-    // 1. Verificación de versión (Rechaza los .jma viejos generados antes de hoy)
-    if (cabecera.version != 2) {
-        printf("Error: Formato de archivo antiguo (JMA v%d).\n", cabecera.version);
-        printf("Por favor, vuelve a compilar y ensamblar el archivo con la nueva versión.\n");
-        fclose(archivo);
-        return;
-    }
-
-    // 2. Mapear el archivo completo en memoria (Solo Lectura inicialmente)
     fseek(archivo, 0, SEEK_END);
     long tamano_archivo = ftell(archivo);
     fseek(archivo, 0, SEEK_SET);
+    int fd = fileno(archivo);
 
-    void *base_archivo = mmap(NULL, tamano_archivo, PROT_READ, 
-                              MAP_PRIVATE, fileno(archivo), 0);
-    if (base_archivo == MAP_FAILED) {
-        printf("Error en mmap del archivo\n");
-        fclose(archivo);
-        return;
-    }
+    // Leer el archivo a un buffer temporal para copiar secciones
+    char *buffer = malloc(tamano_archivo);
+    fread(buffer, 1, tamano_archivo, archivo);
+    fclose(archivo);
 
-    // 3. Hacer ejecutable el segmento de código
+    // Alineación a página
+    #define ALN(x) (((x) + 4095) & ~4095)
+
+    // Calcular offsets de cada sección dentro de la arena (contiguos, alineados)
+    long off_codigo = 0;
+    long off_datos  = off_codigo + ALN(cabecera.tamano_codigo);
+    long off_const  = off_datos  + ALN(cabecera.tamano_datos);
+    long off_bss    = off_const  + ALN(cabecera.tamano_constantes);
+    long off_heap   = off_bss    + ALN(cabecera.tamano_reservado);
+    long arena_size = off_heap   + ALN(cabecera.tamano_heap_inicial);
+    if (arena_size < 4096) arena_size = 4096;
+
+    // 1. Reservar la arena (sin permisos aún)
+    void *arena = mmap(NULL, arena_size, PROT_NONE,
+                       MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+    if (arena == MAP_FAILED) { printf("Error al reservar arena\n"); free(buffer); return; }
+
+    // 2. Mapear cada sección dentro de la arena con MAP_FIXED y sus permisos
+    void *codigo_inicio = NULL, *datos_inicio = NULL, *constantes_inicio = NULL;
+    void *reservado_inicio = NULL, *heap_inicio = NULL;
+
     if (cabecera.tamano_codigo > 0) {
-        void *inicio_codigo = (char*)base_archivo + cabecera.offset_codigo;
-        long pagina = sysconf(_SC_PAGESIZE);
-        void *inicio_codigo_alineado = (void*)((long)inicio_codigo & ~(pagina - 1));
-        long tamano_codigo_alineado = cabecera.tamano_codigo + 
-                                      ((long)inicio_codigo - (long)inicio_codigo_alineado);
-        
-        mprotect(inicio_codigo_alineado, tamano_codigo_alineado, PROT_READ | PROT_EXEC);
+        codigo_inicio = mmap((char*)arena + off_codigo, ALN(cabecera.tamano_codigo),
+                             PROT_READ | PROT_WRITE,
+                             MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED, -1, 0);
+        memcpy(codigo_inicio, buffer + cabecera.offset_codigo, cabecera.tamano_codigo);
     }
-
-    fclose(archivo); 
-
-    // 4. Mapear BSS (.reservado)
-    void *bss_inicio = NULL;
+    if (cabecera.tamano_datos > 0) {
+        datos_inicio = mmap((char*)arena + off_datos, ALN(cabecera.tamano_datos),
+                            PROT_READ | PROT_WRITE,
+                            MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED, -1, 0);
+        memcpy(datos_inicio, buffer + cabecera.offset_datos, cabecera.tamano_datos);
+    }
+    if (cabecera.tamano_constantes > 0) {
+        constantes_inicio = mmap((char*)arena + off_const, ALN(cabecera.tamano_constantes),
+                                 PROT_READ | PROT_WRITE,   // RW temporal para copiar
+                                 MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED, -1, 0);
+        memcpy(constantes_inicio, buffer + cabecera.offset_constantes, cabecera.tamano_constantes);
+        mprotect(constantes_inicio, ALN(cabecera.tamano_constantes), PROT_READ); // luego RO
+    }
     if (cabecera.tamano_reservado > 0) {
-        bss_inicio = mmap(NULL, cabecera.tamano_reservado,
-                          PROT_READ | PROT_WRITE,
-                          MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+        reservado_inicio = mmap((char*)arena + off_bss, ALN(cabecera.tamano_reservado),
+                                PROT_READ | PROT_WRITE,
+                                MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED, -1, 0);
     }
-
-    // 5. Mapear Heap dinámico
-    void *heap_inicio = NULL;
     if (cabecera.tamano_heap_inicial > 0) {
-        heap_inicio = mmap(NULL, cabecera.tamano_heap_inicial,
+        heap_inicio = mmap((char*)arena + off_heap, ALN(cabecera.tamano_heap_inicial),
                            PROT_READ | PROT_WRITE,
-                           MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+                           MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED, -1, 0);
     }
 
-    // 6. Escribir el puntero al heap en los primeros 8 bytes de .datos (Opción 2)
-    if (heap_inicio && cabecera.tamano_datos >= 8) {
-        void *inicio_datos = (char*)base_archivo + cabecera.offset_datos;
-        long pagina = sysconf(_SC_PAGESIZE);
-        void *inicio_datos_alineado = (void*)((long)inicio_datos & ~(pagina - 1));
-        long tamano_datos_alineado = cabecera.tamano_datos + 
-                                     ((long)inicio_datos - (long)inicio_datos_alineado);
-        
-        // Cambiamos temporalmente a RW para escribir el puntero
-        mprotect(inicio_datos_alineado, tamano_datos_alineado, PROT_READ | PROT_WRITE);
-        *((void**)inicio_datos) = heap_inicio;
-        // (Opcional: volver a poner solo PROT_READ si quisieras máxima seguridad, 
-        // pero dejarlo RW es estándar para variables globales)
+    free(buffer);
+
+    // 3. Opción B: puntero del heap al FINAL de .datos
+    if (heap_inicio && datos_inicio && cabecera.tamano_datos >= 8) {
+        void *final_datos = (char*)datos_inicio + cabecera.tamano_datos - 8;
+        *((void**)final_datos) = heap_inicio;
     }
+
+    // 4. Procesar relocalizaciones (codigo aún es RW)
+    if (cabecera.tamano_relocalizaciones > 0 && codigo_inicio != NULL) {
+        Relocacion *relocs = (Relocacion*)malloc(cabecera.tamano_relocalizaciones);
+        FILE *a2 = fopen(nombre_archivo, "rb");
+        fseek(a2, cabecera.offset_relocalizaciones, SEEK_SET);
+        fread(relocs, 1, cabecera.tamano_relocalizaciones, a2);
+        fclose(a2);
+        int num_relocs = cabecera.tamano_relocalizaciones / sizeof(Relocacion);
+
+        for (int i = 0; i < num_relocs; i++) {
+            void *base_destino = NULL;
+            switch (relocs[i].tipo_seccion) {
+                case 0: base_destino = datos_inicio;      break; // .datos
+                case 1: base_destino = constantes_inicio; break; // .constantes
+                case 2: base_destino = reservado_inicio;  break; // .reservado
+            }
+            if (!base_destino) continue;
+            void *destino = (char*)base_destino + relocs[i].offset_en_seccion;
+            void *rip = (char*)codigo_inicio + relocs[i].offset_en_codigo + 4;
+            *(int*)((char*)codigo_inicio + relocs[i].offset_en_codigo) = (int)((char*)destino - (char*)rip);
+        }
+        free(relocs);
+    }
+
+    // 5. W^X: bloquear codigo a RX ahora que ya parcheamos
+    if (codigo_inicio != NULL)
+        mprotect(codigo_inicio, ALN(cabecera.tamano_codigo), PROT_READ | PROT_EXEC);
 
     printf("Ejecutando %s (JMA v%d)...\n", nombre_archivo, cabecera.version);
-    printf("  -> Codigo:    %p (%ld bytes)\n", (char*)base_archivo + cabecera.offset_codigo, cabecera.tamano_codigo);
-    printf("  -> Heap:      %p (%ld bytes)\n", heap_inicio, cabecera.tamano_heap_inicial);
+    printf("  -> Arena:     %p (%ld bytes)\n", arena, arena_size);
+    printf("  -> Codigo:    %p (%ld bytes) [RX]\n", codigo_inicio, cabecera.tamano_codigo);
+    printf("  -> Datos:     %p (%ld bytes) [RW]\n", datos_inicio, cabecera.tamano_datos);
+    printf("  -> Constantes:%p (%ld bytes) [R]\n", constantes_inicio, cabecera.tamano_constantes);
+    printf("  -> Reservado: %p (%ld bytes) [RW]\n", reservado_inicio, cabecera.tamano_reservado);
+    printf("  -> Heap:      %p (%ld bytes) [RW]\n", heap_inicio, cabecera.tamano_heap_inicial);
 
-    // 7. CÁLCULO DEL PUNTO DE ENTRADA (Soporta Absolutas y Relativas)
-    void *punto_entrada;
-    if (cabecera.entry_point >= 0x400000) {
-        // Es una dirección ABSOLUTA (ej: 0x400000). Calculamos el offset real.
-        long offset_real = cabecera.entry_point - 0x400000;
-        punto_entrada = (char*)base_archivo + cabecera.offset_codigo + offset_real;
-    } else {
-        // Es una dirección RELATIVA (ej: 0).
-        punto_entrada = (char*)base_archivo + cabecera.offset_codigo + cabecera.entry_point;
-    }
+    void *punto_entrada = (char*)codigo_inicio + (cabecera.entry_point - 0x400000);
 
-    // 8. Saltar al código
     asm volatile (
         "andq $-16, %%rsp\n"
         "jmp *%0\n"
-        : 
-        : "r" (punto_entrada)
-        : "memory"
+        : : "r" (punto_entrada) : "memory"
     );
 }

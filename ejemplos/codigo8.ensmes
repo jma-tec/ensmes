@@ -1,0 +1,49 @@
+.datos
+    vec_a:
+        definir_vectflot256 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0
+    vec_b:
+        definir_vectflot256 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5
+    mensaje_ok:
+        definir_byte 79   # 'O'
+        definir_byte 75   # 'K'
+        definir_byte 10   # '\n'
+
+.reservado
+    resultado:
+        reservar_vectflot256 8   # ¡Esto prueba el offset virtual y reloc tipo 2!
+
+.codigo
+inicio:
+    # 1. Cargar vec_a en ymm0
+    cargar_direccion vec_a, r_puntero64
+    vcargar_vector [r_puntero64], ymm0_256
+    
+    # 2. Cargar vec_b en ymm1
+    cargar_direccion vec_b, r_base64
+    vcargar_vector [r_base64], ymm1_256
+    
+    # 3. Sumar: ymm0 = ymm0 + ymm1
+    vsumar_vector ymm1_256, ymm0_256
+    
+    # 4. Guardar en resultado (¡Prueba de fuego: reloc de .codigo a .reservado!)
+    cargar_direccion resultado, r_puntero64
+    vguardar_vector ymm0_256, [r_puntero64]
+    
+    # 5. Syscall write(1, resultado, 32)
+    cargar_direccion resultado, r_puntero64
+    copiar 32, r_datos64        # longitud = 32 bytes
+    copiar 1, r_destino64       # fd = 1 (stdout)
+    copiar 1, r_acumulador64    # syscall = 1 (write)
+    interrumpir
+    
+    # 6. Syscall write(1, mensaje_ok, 3)
+    cargar_direccion mensaje_ok, r_puntero64
+    copiar 3, r_datos64         # longitud = 3 bytes
+    copiar 1, r_destino64       # fd = 1 (stdout)
+    copiar 1, r_acumulador64    # syscall = 1 (write)
+    interrumpir
+    
+    # 7. Syscall exit(0)
+    copiar 60, r_acumulador64   # syscall = 60 (exit)
+    copiar 0, r_destino64       # codigo = 0
+    interrumpir
